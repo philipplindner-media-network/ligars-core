@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 
 # 1. Konfiguration laden
 load_dotenv()
-genai.configure(api_key=os.getenv("AIzaSyDhYi6yzxja_Lzg-PKFJcS0A360m89fCeE"))
+genai.configure(api_key=os.getenv("---"))
 
 def get_ligars_model():
     # System Instruction: Hier definierst du die "Persönlichkeit" fest im Modell
