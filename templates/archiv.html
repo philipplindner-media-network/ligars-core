@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LIGARS // BIOMETRISCHES_ARCHIV</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #050505;
+            --accent: #00ffcc;
+            --accent-dim: rgba(0, 255, 204, 0.1);
+            --pink: #ff69b4;
+            --glass: rgba(10, 10, 10, 0.9);
+            --border: #1a1a1a;
+        }
+
+        body {
+            background: var(--bg);
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+            margin: 0;
+            padding-bottom: 50px;
+            background-image: radial-gradient(var(--accent-dim) 1px, transparent 1px);
+            background-size: 30px 30px;
+        }
+
+        .nav {
+            background: var(--glass);
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid var(--accent);
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .nav-link {
+            color: var(--accent);
+            text-decoration: none;
+            margin: 0 15px;
+            font-size: 0.8rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+
+        h1 {
+            font-family: 'Orbitron';
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 5px;
+            border-left: 5px solid var(--accent);
+            padding-left: 15px;
+            margin-bottom: 30px;
+        }
+
+        .archive-table-wrapper {
+            background: var(--glass);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            text-transform: uppercase;
+            font-size: 0.7rem;
+            color: var(--accent);
+            letter-spacing: 1px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 15px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+        }
+
+        tr:hover {
+            background: rgba(0, 255, 204, 0.02);
+        }
+
+        .tag {
+            background: var(--border);
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 0.8rem;
+        }
+
+        .preview-img {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border: 1px solid var(--accent);
+            border-radius: 4px;
+            transition: 0.3s;
+            cursor: pointer;
+        }
+
+        .preview-img:hover {
+            transform: scale(1.5);
+            z-index: 10;
+            box-shadow: 0 0 15px var(--accent);
+        }
+
+        .notes {
+            font-size: 0.85rem;
+            color: #aaa;
+            max-width: 300px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .empty-state {
+            padding: 50px;
+            text-align: center;
+            color: #555;
+            letter-spacing: 2px;
+        }
+
+        /* Mobile Optimierung */
+        @media (max-width: 768px) {
+            .notes { display: none; }
+            th:nth-child(4), td:nth-child(4) { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="nav">
+        <a href="/" class="nav-link">< BACK_TO_CORE</a>
+        <a href="/plan" class="nav-link">MASTERPLAN</a>
+        <a href="/shopping" class="nav-link">LOGISTIK</a>
+    </div>
+
+    <div class="container">
+        <h1>BIOMETRISCHES_ARCHIV</h1>
+
+        <div class="archive-table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>DATUM</th>
+                        <th>VISUAL</th>
+                        <th>TAILLE</th>
+                        <th>BRUST / HALS</th>
+                        <th>NOTIZEN</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr>
+                        <td><span class="tag">{{ log.datum }}</span></td>
+                        <td>
+                            {% if log.datei %}
+                                {# Logik: Falls mehrere Dateinamen kommagetrennt gespeichert sind #}
+                                {% set files = log.datei.split(',') %}
+                                <div style="display: flex; gap: 5px;">
+                                    {% for f in files %}
+                                        <a href="{{ url_for('custom_static', filename=f) }}" target="_blank">
+                                            <img src="{{ url_for('custom_static', filename=f) }}" class="preview-img" title="{{ f }}">
+                                        </a>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <small style="opacity:0.2;">NO_VISUAL</small>
+                            {% endif %}
+                        </td>
+                        <td style="color:var(--pink); font-weight: bold;">{{ log.taille or '--' }} cm</td>
+                        <td style="font-size: 0.8rem; color: #888;">
+                            B: {{ log.brust or '--' }}<br>
+                            H: {{ log.hals or '--' }}
+                        </td>
+                        <td class="notes" title="{{ log.notizen }}">
+                            {{ log.notizen or '---' }}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="empty-state">LIGARS_DATABASE_EMPTY // KEINE EINTRÄGE GEFUNDEN</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</body>
+</html>

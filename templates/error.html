@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>LIGARS // SYSTEM_CRITICAL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg: #050505; --danger: #ff0055; --accent: #00ffcc; }
+        body { background: var(--bg); color: var(--danger); font-family: 'Share Tech Mono', monospace; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; text-align: center; }
+        .glitch-box { border: 2px solid var(--danger); padding: 40px; background: rgba(255, 0, 85, 0.1); box-shadow: 0 0 30px var(--danger); }
+        h1 { font-family: 'Orbitron'; font-size: 3rem; margin: 0; }
+        .back-link { color: var(--accent); text-decoration: none; border: 1px solid var(--accent); padding: 10px 20px; display: inline-block; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="glitch-box">
+        <h1>ERROR_{{ code }}</h1>
+        <p>{{ msg }}</p>
+        <a href="/" class="back-link">ZURÜCK_ZUM_CORE</a>
+    </div>
+</body>
+</html>

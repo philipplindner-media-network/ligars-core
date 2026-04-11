@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>LIGARS_CORE // SUBJEKTIV-REPORT</title>
+    <style>
+        body { background: #050505; color: #00ffcc; font-family: monospace; padding: 20px; }
+        .box { border: 1px solid #00ffcc; padding: 15px; margin-bottom: 20px; background: #0a0a0a; }
+        .protokoll { color: #ffcc00; font-style: italic; border-left: 3px solid #ffcc00; padding-left: 10px; }
+        textarea, input { width: 100%; background: #111; border: 1px solid #00ffcc; color: white; margin: 10px 0; padding: 5px; }
+        button { background: #00ffcc; color: black; border: none; padding: 10px; width: 100%; cursor: pointer; font-weight: bold; }
+        .success { color: #00ff00; font-weight: bold; text-align: center; }
+    </style>
+</head>
+<body>
+    <h1>SYSTEM_UMFRAGE // STATUS_MENSCH</h1>
+
+    {% if status == "SUCCESS" %}
+        <div class="box success">DATENTRANSFER ZU ANY64.DE ABGESCHLOSSEN.</div>
+    {% endif %}
+
+    <div class="box">
+        <strong>AKTUELL GEKOPPELTES PROTOKOLL:</strong>
+        <div class="protokoll">{{ protokoll|safe }}</div>
+    </div>
+
+    <div class="box">
+        <form method="POST">
+            <label>ENERGIE-LEVEL (1=Minimal, 10=Maximum):</label>
+            <input type="number" name="energie" min="1" max="10" value="5" required>
+
+            <label>DISZIPLIN-SELBSTCHECK (Wurden Befehle exakt befolgt?):</label>
+            <textarea name="disziplin" rows="3" placeholder="Statusbericht hier eingeben..."></textarea>
+
+            <label>KÖRPERLICHES BEFINDEN (Schmerz, Erschöpfung, Anpassung):</label>
+            <textarea name="koerper" rows="3"></textarea>
+
+            <label style="color: #ffcc00;">
+                <input type="checkbox" name="oeffentlich"> DATENSATZ AUF LIGARS.ANY64.DE VERÖFFENTLICHEN
+            </label>
+
+            <button type="submit">PROTOKOLL AN WEBSERVICE ÜBERMITTELN</button>
+        </form>
+    </div>
+
+    <div style="text-align: center;">
+        <a href="{{ url_for('index') }}" style="color: #666;">ZURÜCK ZUM DASHBOARD</a>
+    </div>
+</body>
+</html>

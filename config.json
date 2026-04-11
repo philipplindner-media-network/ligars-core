@@ -1,0 +1,9 @@
+{
+    "SMTP_SERVER": "mail.lindner-leipzig.de",
+    "SMTP_PORT": 465,
+    "SMTP_USER": "ligars-core@lindner-leipzig.eu",
+    "SMTP_PASS": "gAAAAABp2inKi7IrUnKTp9q7v123cmQfslXGE2qo-cjGOxBqr9ctdn5_26qPwsUMrsZBGqv-UWjzr1YOaM0ES2XBQIIxjJRcJQ==",
+    "MAIL_SENDER": "ligars-core@lindner-leipzig.eu",
+    "GEMINI_API_KEY": "-KEY Hier Rein-",
+    "WEB_PASSWORD": "Sissy2026"
+}

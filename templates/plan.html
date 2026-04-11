@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LIGARS // MISSIONS_PLAN</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #050505;
+            --accent: #00ffcc;
+            --accent-dim: rgba(0, 255, 204, 0.1);
+            --danger: #ff0055;
+            --panel: rgba(15, 15, 15, 0.9);
+            --border: #333;
+        }
+        body {
+            background-color: var(--bg);
+            background-image:
+                linear-gradient(var(--accent-dim) 1px, transparent 1px),
+                linear-gradient(90deg, var(--accent-dim) 1px, transparent 1px);
+            background-size: 50px 50px;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+            margin: 0; padding: 20px;
+        }
+        header {
+            border-bottom: 2px solid var(--danger);
+            padding: 20px 0; margin-bottom: 40px;
+            background: rgba(0,0,0,0.8);
+            text-align: center;
+        }
+        h1 { font-family: 'Orbitron'; letter-spacing: 10px; margin: 0; font-size: 2.5rem; }
+        .sub-header { color: var(--danger); font-size: 0.8rem; letter-spacing: 3px; margin-top: 10px; }
+
+        .plan-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 25px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .wochen-card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            padding: 20px;
+            position: relative;
+            transition: all 0.3s;
+        }
+        .wochen-card:hover {
+            border-color: var(--accent);
+            box-shadow: 0 0 15px var(--accent-dim);
+        }
+
+        .woche-num {
+            position: absolute; top: 10px; right: 10px;
+            font-family: 'Orbitron'; color: var(--accent); font-size: 0.7rem;
+        }
+
+        .label {
+            display: block; font-size: 0.6rem; color: #888;
+            text-transform: uppercase; margin-bottom: 5px;
+            letter-spacing: 1px;
+        }
+
+        .content {
+            font-size: 1rem; color: #eee; margin-bottom: 20px;
+            line-height: 1.4; border-left: 2px solid var(--accent); padding-left: 10px;
+        }
+
+        .tages-nav {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+            margin-bottom: 20px;
+        }
+        .tag-btn {
+            background: #111;
+            border: 1px solid #444;
+            color: var(--accent);
+            text-decoration: none;
+            text-align: center;
+            font-size: 0.7rem;
+            padding: 5px 0;
+            transition: 0.2s;
+        }
+        .tag-btn:hover {
+            background: var(--accent);
+            color: #000;
+            border-color: var(--accent);
+        }
+        .tag-btn span { display: block; font-size: 0.5rem; opacity: 0.7; }
+
+        .event-box {
+            background: rgba(255, 0, 85, 0.05);
+            border: 1px dashed var(--danger);
+            padding: 10px;
+            margin-top: 10px;
+        }
+        .event-text { color: #eee; font-size: 0.9rem; font-style: italic; }
+
+        .nav-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            max-width: 1400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .btn-link { color: var(--accent); text-decoration: none; font-size: 0.8rem; font-family: 'Orbitron'; letter-spacing: 2px; }
+        .btn-link:hover { text-shadow: 0 0 10px var(--accent); }
+        .btn-print-master { color: var(--danger); border: 1px solid var(--danger); padding: 5px 15px; font-size: 0.7rem; transition: 0.3s; }
+        .btn-print-master:hover { background: var(--danger); color: #fff; }
+
+        @media print {
+            .nav-top, .tag-btn span { display: none; }
+            .wochen-card { break-inside: avoid; border: 1px solid #000; color: #000; background: #fff; }
+            body { background: #fff; color: #000; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="nav-top">
+        <a href="/" class="btn-link">< RETURN_TO_CORE</a>
+        <a href="/print_plan" class="btn-link btn-print-master" target="_blank">GENERATE_FULL_PRINT_LOG ></a>
+    </div>
+
+    <header>
+        <h1>48_WOCHEN_MASTERPLAN</h1>
+        <div class="sub-header">SYSTEM_STATUS: ENFORCED // PROTOKOLL: {{ plan_name }}</div>
+    </header>
+
+    <div class="plan-grid">
+        {% for w in wochen %}
+        <div class="wochen-card">
+            <span class="woche-num">PHASE_{{ "0" if w.woche < 10 }}{{ w.woche }}</span>
+
+            <span class="label">Wochenfokus:</span>
+            <div class="content">
+                {{ w.aufgabe }}
+            </div>
+
+            <span class="label">Tagesbefehle (Stündlich):</span>
+            <div class="tages-nav">
+                {% for t_nr in range(1, 8) %}
+                <a href="/tagesplan/{{ w.woche }}/{{ t_nr }}" class="tag-btn" target="_blank">
+                    T{{ t_nr }}
+                    <span>PRINT</span>
+                </a>
+                {% endfor %}
+            </div>
+
+            <div class="event-box">
+                <span class="label" style="color: var(--danger); text-shadow: 0 0 5px var(--danger);">Wochenend_Event:</span>
+                <div class="event-text">
+                    {{ w.equipment_event }}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div style="text-align: center; margin-top: 50px; color: #444; font-size: 0.7rem; letter-spacing: 2px;">
+        LIGARS_CORE_ARCHIVE // NO_UNAUTHORIZED_ACCESS
+    </div>
+
+</body>
+</html>

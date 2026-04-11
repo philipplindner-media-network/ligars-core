@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>BEFEHL_AUSGABE</title>
+    <style>
+        body { background: #050505; color: white; font-family: 'Courier New', monospace; padding: 40px; }
+        .doc { max-width: 800px; margin: auto; border: 1px solid #333; padding: 40px; }
+        header { border-bottom: 2px solid #ff0055; margin-bottom: 30px; }
+        .meta { color: #00ffcc; font-size: 0.8rem; margin-bottom: 10px; }
+        h1 { margin: 0; font-size: 1.5rem; letter-spacing: 2px; }
+        .content { line-height: 1.8; white-space: pre-line; font-size: 1.1rem; }
+        @media print {
+            body { background: white; color: black; }
+            .doc { border: none; }
+            .no-print { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="no-print" style="text-align:center; margin-bottom:20px;">
+        <button onclick="window.print()">BEFEHL DRUCKEN</button>
+    </div>
+    <div class="doc">
+        <header>
+            <div class="meta">EMPFÄNGER: {{ proband_name }} | STATUS: ENFORCED</div>
+            <h1>TAGESPLAN_W{{ woche }}_T{{ tag_nr }}</h1>
+            <div style="color:#666; font-size:0.7rem;">SCHICHT_HEUTE: {{ tages_schicht_info }}</div>
+        </header>
+        <div class="content">{{ inhalt|safe }}</div>
+    </div>
+</body>
+</html>

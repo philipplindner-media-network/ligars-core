@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>LIGARS // RESSOURCEN_LOGISTIK</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg: #050505; --accent: #00ffcc; --danger: #ff0055; --panel: rgba(20, 20, 20, 0.9); }
+        body { background: var(--bg); color: #fff; font-family: 'Share Tech Mono', monospace; padding: 20px; }
+
+        /* Eingabe-Panel */
+        .add-panel {
+            background: var(--panel); border: 1px solid #333; padding: 20px;
+            margin-bottom: 30px; max-width: 900px; margin-left: auto; margin-right: auto;
+        }
+        .input-row { display: grid; grid-template-columns: 2fr 2fr 1fr auto; gap: 10px; }
+        input { background: #000; border: 1px solid #444; color: #fff; padding: 10px; font-family: 'Share Tech Mono'; }
+        .btn-add { background: var(--accent); color: #000; border: none; padding: 10px 20px; font-family: 'Orbitron'; cursor: pointer; }
+
+        /* Tabelle */
+        .container { max-width: 900px; margin: 0 auto; }
+        table { width: 100%; border-collapse: collapse; background: var(--panel); }
+        th { text-align: left; padding: 15px; background: #111; color: var(--accent); font-family: 'Orbitron'; font-size: 0.7rem; border-bottom: 1px solid var(--accent); }
+        td { padding: 15px; border-bottom: 1px solid #222; }
+
+        .status-btn {
+            padding: 5px 10px; font-size: 0.7rem; font-family: 'Orbitron'; text-decoration: none; border: 1px solid;
+        }
+        .pending { border-color: var(--danger); color: var(--danger); }
+        .acquired { border-color: var(--accent); color: var(--accent); opacity: 0.5; }
+
+        .total-box { margin-top: 20px; text-align: right; color: var(--danger); font-family: 'Orbitron'; font-size: 1.2rem; }
+        .nav-top { margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+
+    <div class="nav-top">
+        <a href="/" style="color:var(--accent); text-decoration:none; font-family:'Orbitron'; font-size:0.8rem;">< ZURÜCK</a>
+    </div>
+
+    <div class="container">
+        <h1 style="font-family:'Orbitron'; color:var(--accent); letter-spacing:5px;">LOGISTIK_ZENTRUM</h1>
+
+        <div class="add-panel">
+            <div style="font-size:0.6rem; color:var(--accent); margin-bottom:10px; font-family:'Orbitron';">NEUES_ITEM_REGISTRIEREN</div>
+            <form action="/shopping" method="POST" class="input-row">
+                <input type="text" name="item" placeholder="Gegenstand Name" required>
+                <input type="text" name="link" placeholder="URL / Shop-Link">
+                <input type="text" name="preis" placeholder="Preis (€)">
+                <button type="submit" class="btn-add">HINZUFÜGEN</button>
+            </form>
+        </div>
+
+        {% if request_link %}
+<div style="background: rgba(255, 0, 85, 0.15); border: 2px solid var(--danger); padding: 20px; margin-bottom: 30px; border-radius: 5px; animation: pulse 2s infinite;">
+    <h3 style="color: var(--danger); margin-top: 0; font-family: 'Orbitron';">! HARDWARE_KERN_FEHLER !</h3>
+    <p style="color: #fff; font-size: 0.9rem;">
+        Das System erkennt keine Zertifizierung für: <strong>{{ missing_item }}</strong>.<br>
+        Die KI kann dieses Gerät ohne Master-Instruktionen nicht korrekt analysieren.
+    </p>
+    <a href="{{ request_link }}" class="btn-add" style="display: inline-block; text-decoration: none; background: var(--danger); text-align: center;">
+        ZERTIFIZIERUNG BEIM MASTER ANFORDERN
+    </a>
+</div>
+
+<style>
+@keyframes pulse {
+    0% { box-shadow: 0 0 5px rgba(255, 0, 85, 0.5); }
+    50% { box-shadow: 0 0 20px rgba(255, 0, 85, 0.8); }
+    100% { box-shadow: 0 0 5px rgba(255, 0, 85, 0.5); }
+}
+</style>
+{% endif %}
+
+        <table>
+            <thead>
+                <tr>
+                    <th>ITEM</th>
+                    <th>PREIS</th>
+                    <th>STATUS / AKTION</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td>
+                        <div style="font-weight:bold;">{{ item.item }}</div>
+                        <div style="font-size:0.7rem; color:#555;">{{ item.phase }}</div>
+                    </td>
+                    <td style="color:var(--accent);">{{ item.preis }} €</td>
+                    <td>
+                        {% if item.status == 0 %}
+                            <form action="/shopping" method="POST" style="display:inline;">
+                                <input type="hidden" name="id" value="{{ item.id }}">
+                                <button type="submit" class="status-btn pending">MACKIEREN: ERWORBEN</button>
+                            </form>
+                            {% if item.link %}
+                                <a href="{{ item.link }}" target="_blank" style="color:#555; font-size:0.7rem; margin-left:10px;">SHOP_LINK</a>
+                            {% endif %}
+                        {% else %}
+                            <form action="/shopping" method="POST" style="display:inline;">
+                                <input type="hidden" name="id" value="{{ item.id }}">
+                                <button type="submit" class="status-btn acquired">BESCHAFFT (RÜCKGÄNGIG?)</button>
+                            </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="total-box">
+            INVESTITIONS_SUMME: {{ "%.2f"|format(total) }} €
+        </div>
+    </div>
+
+</body>
+</html>

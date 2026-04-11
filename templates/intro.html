@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>LIGARS // INITIALIZING...</title>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #050505;
+            color: #00ffcc;
+            font-family: 'Share Tech Mono', monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+        .boot-container {
+            width: 80%;
+            max-width: 600px;
+            display: none; /* Erst nach Klick zeigen */
+        }
+        .start-overlay {
+            text-align: center;
+            cursor: pointer;
+            border: 1px solid #00ffcc; /* Fix: var(--accent) zu hartem Wert */
+            padding: 40px;
+            background: rgba(0, 255, 204, 0.05);
+            transition: 0.3s;
+        }
+        .start-overlay:hover {
+            box-shadow: 0 0 30px rgba(0, 255, 204, 0.2);
+        }
+        .line {
+            margin: 5px 0;
+            opacity: 0;
+            animation: fadeIn 0.1s forwards;
+            font-size: 14px;
+        }
+        @keyframes fadeIn { to { opacity: 1; } }
+
+        .progress-bar {
+            width: 0%;
+            height: 2px;
+            background: #00ffcc;
+            box-shadow: 0 0 10px #00ffcc;
+            margin-top: 20px;
+            animation: load 3s forwards ease-in-out; /* Etwas schneller */
+        }
+        @keyframes load { to { width: 100%; } }
+    </style>
+</head>
+<body>
+
+<div id="start-trigger" class="start-overlay">
+    <h2 style="letter-spacing: 5px;">[ SYSTEM_ACCESS_REQUIRED ]</h2>
+    <p style="font-size: 0.8rem; opacity: 0.7;">KLICKEN ZUM INITIALISIEREN DER ÜBERWACHUNG</p>
+</div>
+
+<div class="boot-container" id="terminal">
+    </div>
+
+<script>
+    const trigger = document.getElementById('start-trigger');
+    const terminal = document.getElementById('terminal');
+
+    const lines = [
+        "> INITIALIZING LIGARS_CORE ENCRYPTION...",
+        "> REQUESTING FULLSCREEN_PRIVILEGES... [GRANTED]",
+        "> LOADING BIOMETRIC_SCANNER... [OK]",
+        "> ESTABLISHING NEURAL_LINK... [STABLE]",
+        "> WARNING: ALL ACTIONS ARE BEING MONITORED.",
+        "> ACCESS GRANTED. WELCOME MASTER."
+    ];
+
+    async function startBoot() {
+        const elem = document.documentElement;
+        try {
+            if (elem.requestFullscreen) await elem.requestFullscreen();
+            else if (elem.webkitRequestFullscreen) await elem.webkitRequestFullscreen();
+        } catch (err) { console.warn("FS_ERROR:", err); }
+
+        trigger.style.display = 'none';
+        terminal.style.display = 'block';
+
+        lines.forEach((text, i) => {
+            setTimeout(() => {
+                const line = document.createElement('div');
+                line.className = 'line';
+                line.textContent = text;
+                terminal.appendChild(line);
+
+                if (i === lines.length - 1) {
+                    const bar = document.createElement('div');
+                    bar.className = 'progress-bar';
+                    terminal.appendChild(bar);
+                    // Start des AJAX-Ladevorgangs
+                    loadCoreSystem();
+                }
+            }, i * 400);
+        });
+    }
+
+    async function loadCoreSystem() {
+        await new Promise(r => setTimeout(r, 3500)); // Warte auf Animation
+        try {
+            const response = await fetch("{{ url_for('index') }}", {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            const html = await response.text();
+
+            // Nahtloser Austausch
+            document.body.innerHTML = html;
+
+            // Re-Initialisierung der Scripte (Typewriter etc.)
+            const scripts = document.body.getElementsByTagName('script');
+            for (let script of scripts) {
+                const newScript = document.createElement("script");
+                if (script.src) newScript.src = script.src;
+                else newScript.textContent = script.textContent;
+                document.body.appendChild(newScript);
+            }
+        } catch (e) {
+            window.location.href = "{{ url_for('index') }}"; // Fallback
+        }
+    }
+
+    trigger.addEventListener('click', startBoot);
+</script>
+</body>
+</html>

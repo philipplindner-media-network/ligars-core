@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>LIGARS | INITIALISIERUNG_V9</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --cyan: #00ffcc; --bg: #050505; --panel: #0d0d0d; --border: #1a1a1a; --danger: #ff0055; --glass: rgba(0, 255, 204, 0.05); }
+        body { background: var(--bg); color: white; font-family: 'Rajdhani', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; }
+        #loader-wrapper { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 10000; display: none; flex-direction: column; justify-content: center; align-items: center; }
+        .spinner { width: 60px; height: 60px; border: 4px solid rgba(0,255,204,0.1); border-top: 4px solid var(--cyan); border-radius: 50%; animation: spin 1s linear infinite; }
+        .box { background: var(--panel); border: 1px solid var(--border); padding: 35px; border-radius: 5px; width: 850px; box-shadow: 0 0 40px rgba(0, 255, 204, 0.1); }
+        h1 { font-family: 'Orbitron'; font-size: 1.6rem; color: var(--cyan); text-align: center; letter-spacing: 5px; margin: 0; border-bottom: 1px solid var(--cyan); padding-bottom: 15px; margin-bottom: 20px; }
+        h3 { font-family: 'Orbitron'; font-size: 0.8rem; color: var(--danger); border-left: 3px solid var(--danger); padding-left: 10px; margin-top: 25px; text-transform: uppercase; letter-spacing: 2px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        label { display: block; font-size: 0.6rem; color: #666; text-transform: uppercase; margin-bottom: 4px; }
+        input, select { width: 100%; padding: 10px; background: #000; border: 1px solid #222; color: white; font-family: inherit; box-sizing: border-box; outline: none; }
+        input:focus, select:focus { border-color: var(--cyan); }
+
+        /* Neues Schicht-System Styling */
+        .system-box { background: var(--glass); border: 1px solid #222; padding: 20px; margin-top: 10px; }
+        .checkbox-group { display: flex; gap: 20px; margin-top: 10px; background: #000; padding: 15px; border: 1px solid #1a1a1a; }
+        .checkbox-item { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; cursor: pointer; }
+        .checkbox-item input { width: auto; cursor: pointer; }
+
+        button { width: 100%; padding: 18px; background: transparent; border: 2px solid var(--cyan); color: var(--cyan); font-family: 'Orbitron'; cursor: pointer; margin-top: 30px; transition: 0.3s; letter-spacing: 3px; font-weight: bold; }
+        button:hover { background: var(--cyan); color: #000; box-shadow: 0 0 30px var(--cyan); }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div id="loader-wrapper"><div class="spinner"></div><div style="color:var(--cyan); font-family:'Orbitron'; margin-top:20px;">INITIALISIERE 48-WOCHEN-MASTERPLAN...</div></div>
+
+    <div class="box">
+        <h1>LIGARS_PROGENITOR</h1>
+        <form method="POST" onsubmit="document.getElementById('loader-wrapper').style.display = 'flex';">
+
+            <h3>01_IDENTITÄT & BIOMETRIE</h3>
+            <div class="grid">
+                <div><label>Vollständiger Name</label><input type="text" name="name" required placeholder="z.B. Philipp Lindner"></div>
+                <div><label>Kontakt-Email</label><input type="email" name="email" required placeholder="system@mail.de"></div>
+                <div><label>Alter</label><input type="number" name="alter" required></div>
+                <div><label>Gewicht (kg)</label><input type="number" step="0.1" name="gewicht" required></div>
+            </div>
+
+            <h3>02_ZEIT-DEFINITION (DIENSTZEITEN)</h3>
+            <div class="grid system-box">
+                {% for s in ['Frühschicht', 'Spätschicht', 'Nachtschicht', 'Tagdienst'] %}
+                <div>
+                    <label style="color:var(--cyan)">{{ s }}</label>
+                    <div style="display:flex; gap:5px;">
+                        <input type="time" name="time_start_{{ s }}" value="{% if loop.index==1 %}06:00{% elif loop.index==2 %}14:00{% elif loop.index==3 %}22:00{% else %}08:00{% endif %}">
+                        <input type="time" name="time_end_{{ s }}" value="{% if loop.index==1 %}14:00{% elif loop.index==2 %}22:00{% elif loop.index==3 %}06:00{% else %}16:00{% endif %}">
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <h3>03_SCHICHT-ROTATION & SYSTEM</h3>
+            <div class="system-box">
+                <div class="grid">
+                    <div>
+                        <label>Rotations-Modus</label>
+                        <select name="schicht_system">
+                            <option value="FIXED">Feste Schicht (Jede Woche identisch)</option>
+                            <option value="WEEKLY_2">2-Wochen-Wechsel (Rotation zwischen 2 Typen)</option>
+                            <option value="WEEKLY_3">3-Wochen-Wechsel (Rotation zwischen 3 Typen)</option>
+                            <option value="ROLLING_4_2">4-Tage-Dienst / 2-Tage-Frei (Kontinuierlich)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Start-Schicht (Woche 1)</label>
+                        <select name="start_schicht">
+                            <option value="Frühschicht">FRÜHSCHICHT</option>
+                            <option value="Spätschicht">SPÄTSCHICHT</option>
+                            <option value="Nachtschicht">NACHTSCHICHT</option>
+                            <option value="Tagdienst">TAGDIENST / BÜRO</option>
+                        </select>
+                    </div>
+                </div>
+
+                <label style="margin-top:15px;">Verfügbare Schichten im Pool (Mehrfachauswahl):</label>
+                <div class="checkbox-group">
+                    <label class="checkbox-item"><input type="checkbox" name="pool_frueh" checked> FRÜH</label>
+                    <label class="checkbox-item"><input type="checkbox" name="pool_spaet" checked> SPÄT</label>
+                    <label class="checkbox-item"><input type="checkbox" name="pool_nacht"> NACHT</label>
+                    <label class="checkbox-item"><input type="checkbox" name="pool_tag"> TAG</label>
+                </div>
+            </div>
+
+            <h3>04_PROTOKOLL_START</h3>
+            <div class="grid">
+                <div>
+                    <label>Aktivierungs-Protokoll</label>
+                    <select name="plan">
+                        {% for p in plaene %}
+                        <option value="{{ p }}">{{ p }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div><label>Start-Datum (Woche 1)</label><input type="date" name="start_date" required style="color-scheme:dark;"></div>
+            </div>
+
+            <button type="submit">SYSTEM_INITIALISIEREN & GENERIEREN</button>
+        </form>
+    </div>
+</body>
+</html>

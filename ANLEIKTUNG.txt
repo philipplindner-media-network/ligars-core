@@ -1,0 +1,54 @@
+==========================================================
+          LIGARS - DIGITAL MENTOR SYSTEM v1.5
+==========================================================
+
+Willkommen beim LIGARS-Protokoll. Um das System auf deinem 
+lokalen Rechner zu installieren, folge bitte exakt diesen 
+Schritten. Deine Daten bleiben zu 100% privat auf deinem PC.
+
+1. VORAUSSETZUNGEN
+------------------
+Stelle sicher, dass Python auf deinem System installiert ist.
+Falls nicht: Lade es unter https://www.python.org/ herunter 
+(Version 3.10 oder neuer). Setze bei der Installation unbedingt 
+den Haken bei "Add Python to PATH".
+
+2. BIBLIOTHEKEN INSTALLIEREN
+----------------------------
+Öffne deinen Terminal (Windows: CMD / Mac: Terminal) im 
+entpackten LIGARS-Ordner und gib folgenden Befehl ein:
+
+pip install flask requests google-generativeai
+
+3. KI-KERN AKTIVIEREN (API KEY)
+-------------------------------
+LIGARS benötigt einen Gehirn-Zugang über Google Gemini.
+- Gehe auf: https://aistudio.google.com/
+- Erstelle einen kostenlosen "API Key".
+- Öffne die Datei 'app.py' mit einem Texteditor (z.B. Notepad).
+- Suche die Zeile: GEMINI_API_KEY = "DEIN_API_KEY_HIER"
+- Ersetze den Platzhalter durch deinen persönlichen Key und speichere.
+
+4. SYSTEM STARTEN
+-----------------
+Klicke doppelt auf 'app.py' oder gib im Terminal ein:
+
+python app.py
+
+Das System läuft nun. Öffne deinen Webbrowser und gib ein:
+http://127.0.0.1:8000
+
+5. INITIALISIERUNG
+------------------
+Beim ersten Aufruf wirst du aufgefordert, dein Protokoll 
+zu wählen:
+- KLASSISCH: Fokus auf Feminisierung & Ästhetik.
+- LATEX & BDSM: Fokus auf Materialkunde & Disziplin.
+
+Wähle weise. Deine 43 Wochen beginnen jetzt.
+
+----------------------------------------------------------
+HINWEIS: Lösche niemals die Datei 'database.db', wenn du 
+deine Fortschritte behalten willst. Fotos werden im Ordner 
+'uploads' gespeichert.
+==========================================================
