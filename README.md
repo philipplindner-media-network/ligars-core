@@ -12,8 +12,8 @@ Installation und Start in 3 einfachen Schritten:
 # 1. Installation
 ./install_ligars.sh
 
-# 2. Master-Key setzen
-export LIGARS_MASTER_KEY='your_secure_key_here'
+# 2. Gemini Key einbauen
+nano config.json -> "GEMINI_API_KEY": "-KEY Hier Rein-", Ändnern.
 
 # 3. System starten
 python3 app.py
@@ -39,13 +39,6 @@ Das Web-Interface ist danach verfügbar unter: **http://127.0.0.1:8090**
 
 ## 🔒 Sicherheit
 
-### LIGARS_MASTER_KEY
-
-Der `LIGARS_MASTER_KEY` ist eine Umgebungsvariable, die für die AES-256-Verschlüsselung Ihrer SMTP-Passwörter erforderlich ist:
-
-```bash
-export LIGARS_MASTER_KEY='your_secure_encryption_key_here'
-```
 
 ### Konfiguration
 
@@ -76,15 +69,15 @@ Nach der Installation bearbeiten Sie `config.json`:
 
 ```json
 {
-  "ai_model": "gemini-pro",
-  "web_port": 8090,
-  "encryption_enabled": true,
-  "smtp": {
-    "server": "smtp.example.com",
-    "port": 587,
-    "username": "your_email@example.com"
-  }
+    "SMTP_SERVER": "mail.lindner-leipzig.de",
+    "SMTP_PORT": 465,
+    "SMTP_USER": "ligars-core@lindner-leipzig.eu",
+    "SMTP_PASS": "gAAAAABp2inKi7IrUnKTp9q7v123cmQfslXGE2qo-cjGOxBqr9ctdn5_26qPwsUMrsZBGqv-UWjzr1YOaM0ES2XBQIIxjJRcJQ==",
+    "MAIL_SENDER": "ligars-core@lindner-leipzig.eu",
+    "GEMINI_API_KEY": "-KEY Hier Rein-",
+    "WEB_PASSWORD": "Sissy2026"
 }
+
 ```
 
 Die Vorlage finden Sie in `config.json.example`.
@@ -120,4 +113,4 @@ MIT License - Siehe LICENSE Datei für Details.
 
 ---
 
-**LIGARS-CORE v1.0.0** | Experimentelles System | Klinisch-technologische Architektur
+**LIGARS-CORE v2.5.0** | Experimentelles System | Klinisch-technologische Architektur
