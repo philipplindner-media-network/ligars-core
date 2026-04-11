@@ -1,157 +1,123 @@
-# LIGARS-CORE: AI-Driven Personality Simulation Framework
+# LIGARS-CORE: AI Simulation Framework
 
-## Overview
+**Eine Single-App-Lösung für KI-gestützte Simulationen und Rollenspiel-Protokollierung.**
 
-**LIGARS-CORE** is an advanced AI-driven framework engineered for sophisticated personality simulation, psychological profiling, and immersive storytelling experiences. Built on cutting-edge machine learning and natural language processing technologies, LIGARS-CORE enables developers to construct dynamic, context-aware narrative systems with realistic character interactions and behavioral modeling.
+---
 
-The framework operates on principles of computational psychology, leveraging generative AI to simulate complex personality matrices within fictional scenarios, enabling comprehensive motivation testing and character development analysis.
+## 🚀 Quick Start
 
-## Key Features
+Installation und Start in 3 einfachen Schritten:
 
-- **Personality Simulation Engine**: Advanced algorithms for realistic character behavior modeling
-- **Psychological Profiling**: Comprehensive psychometric analysis within narrative contexts
-- **Encrypted Credential Management**: AES-256 encryption for secure SMTP credential storage
-- **Modular Architecture**: Flexible, extensible design for custom implementations
-- **Multi-Platform Support**: Native Linux support with cross-platform compatibility
+```bash
+# 1. Installation
+./install_ligars.sh
 
-## Installation
+# 2. Master-Key setzen
+export LIGARS_MASTER_KEY='your_secure_key_here'
 
-### Automated Installation (Linux)
+# 3. System starten
+python3 app.py
+```
 
-Execute the automated installation script:
+Das Web-Interface ist danach verfügbar unter: **http://127.0.0.1:8090**
+
+---
+
+## 📋 Übersicht
+
+**LIGARS-CORE** ist ein experimentelles KI-Simulations-Framework für Persönlichkeitsprofile und kreative Rollenspiel-Protokolle. Das System läuft vollständig lokal und benötigt keine externe Infrastruktur.
+
+### Features
+
+- ✅ **Web-Dashboard**: Lokales Interface unter `http://127.0.0.1:8090`
+- ✅ **Lokale Speicherung**: Alle Daten werden lokal gespeichert
+- ✅ **AES-256 Verschlüsselung**: Sichere Speicherung von SMTP-Passwörtern
+- ✅ **Einfache Bedienung**: Konfigurieren → Starten → Nutzen
+- ✅ **Google Generative AI Integration**: Powered by Gemini
+
+---
+
+## 🔒 Sicherheit
+
+### LIGARS_MASTER_KEY
+
+Der `LIGARS_MASTER_KEY` ist eine Umgebungsvariable, die für die AES-256-Verschlüsselung Ihrer SMTP-Passwörter erforderlich ist:
+
+```bash
+export LIGARS_MASTER_KEY='your_secure_encryption_key_here'
+```
+
+### Konfiguration
+
+Die `config.json` enthält alle Einstellungen. **Speichern Sie niemals API-Keys oder Passwörter im Repository!** Nutzen Sie stattdessen Umgebungsvariablen.
+
+---
+
+## 📦 Installation
+
+### Automatisierte Installation (Linux)
 
 ```bash
 chmod +x install_ligars.sh
 ./install_ligars.sh
 ```
 
-This script will automatically:
-- Verify Python 3.8+ availability
-- Create an isolated Python virtual environment
-- Install all required dependencies
-- Generate a template configuration file
+Das Skript installiert automatisch:
+- Python 3.8+ (falls nicht vorhanden)
+- Alle benötigten Abhängigkeiten (Flask, Requests, Google Generative AI, Cryptography)
+- Config-Datei (basierend auf `config.json.example`)
+- Virtual Environment
 
-### Manual Installation
+---
 
-For advanced users or custom configurations:
+## ⚙️ Konfiguration
 
-```bash
-# Create virtual environment
-python3 -m venv venv_ligars
-source venv_ligars/bin/activate
-
-# Install dependencies
-pip install --upgrade pip
-pip install flask requests google-generativeai cryptography
-```
-
-### Configuration Setup
-
-1. **Create Configuration File**
-
-Create a `config.json` file in your project root:
+Nach der Installation bearbeiten Sie `config.json`:
 
 ```json
 {
   "ai_model": "gemini-pro",
-  "simulation_mode": "standard",
+  "web_port": 8090,
   "encryption_enabled": true,
   "smtp": {
     "server": "smtp.example.com",
     "port": 587,
     "username": "your_email@example.com"
-  },
-  "logging_level": "INFO"
+  }
 }
 ```
 
-2. **Set Environment Variables**
-
-Configure the `LIGARS_MASTER_KEY` for encrypted credential storage:
-
-```bash
-echo "export LIGARS_MASTER_KEY='your_secure_encryption_key_min_32_chars'" >> ~/.bashrc
-```
-
-Add this to your shell profile (`~/.bashrc`, `~/.zshrc`, or `~/.bash_profile`) for persistence:
-
-```bash
-echo "export LIGARS_MASTER_KEY='your_secure_encryption_key'" >> ~/.bashrc
-source ~/.bashrc
-```
-
-## Security Architecture
-
-### Credential Protection
-
-- **Zero Trust Principle**: No private keys, API credentials, or sensitive data are stored in the repository
-- **AES-256 Encryption**: SMTP passwords and sensitive configuration data are encrypted using AES-256-CBC
-- **Key Derivation**: Master keys are derived using PBKDF2 with SHA-256 hashing
-- **Local Secrets Management**: All credentials managed exclusively through environment variables and local configuration files
-
-### Best Practices
-
-```bash
-# NEVER commit credentials or the LIGARS_MASTER_KEY
-echo "config.json" >> .gitignore
-echo ".env" >> .gitignore
-
-# Verify your key has sufficient entropy
-echo -n "your_key" | wc -c  # Should be at least 32 characters
-```
-
-## Dependencies
-
-- **flask** (2.0+): Lightweight web framework for API endpoints
-- **requests**: HTTP client library for external API communication
-- **google-generativeai**: Google's generative AI API integration
-- **cryptography**: Industry-standard encryption library for credential management
-
-## Architecture
-
-```
-ligars-core/
-├── venv_ligars/           # Python virtual environment
-├── config.json            # Configuration template (user-created)
-├── install_ligars.sh      # Automated installation script
-├── core/                  # Core simulation engine
-├── models/                # Personality and behavioral models
-└── utils/                 # Encryption and utility modules
-```
-
-## Usage Example
-
-```python
-from ligars_core import SimulationEngine, EncryptionManager
-
-# Initialize encryption manager
-encryption_mgr = EncryptionManager()
-
-# Load configuration
-config = encryption_mgr.load_config('config.json')
-
-# Initialize simulation engine
-engine = SimulationEngine(config)
-
-# Execute personality simulation
-results = engine.simulate_scenario(profile_data, context)
-```
-
-## Contributing
-
-Contributions to LIGARS-CORE are welcome. Please ensure:
-- All code adheres to security best practices
-- Sensitive data handling is properly documented
-- Pull requests include comprehensive testing
-
-## License
-
-This project is licensed under the MIT License. See LICENSE file for details.
-
-## Support & Contact
-
-For technical inquiries, bug reports, or feature requests, please open an issue on the GitHub repository.
+Die Vorlage finden Sie in `config.json.example`.
 
 ---
 
-**Disclaimer**: LIGARS-CORE is designed for educational, research, and creative development purposes. Users are responsible for ensuring compliance with applicable laws and ethical guidelines in their jurisdiction.
+## ⚠️ Disclaimer
+
+**WICHTIG**: LIGARS-CORE ist ein experimentelles System. 
+
+Die Nutzung erfolgt auf **EIGENE GEFAHR**. Der Entwickler übernimmt **KEINE HAFTUNG** für:
+- Datenverlust oder Datenkorruption
+- Fehlfunktionen des Systems
+- Sicherheitslücken oder unbefugte Zugriffe
+- Schäden durch Missbrauch oder unsachgemäße Nutzung
+
+Nutzer sind selbst verantwortlich für die Einhaltung aller geltenden Gesetze und Richtlinien.
+
+---
+
+## 📞 Support
+
+Für Fragen, Probleme oder Vorschläge:
+
+- **Website**: [https://ligars.any64.de/](https://ligars.any64.de/)
+- **E-Mail**: [ligars-core@lindner-leipzig.de](mailto:ligars-core@lindner-leipzig.de)
+
+---
+
+## 📝 Lizenz
+
+MIT License - Siehe LICENSE Datei für Details.
+
+---
+
+**LIGARS-CORE v1.0.0** | Experimentelles System | Klinisch-technologische Architektur
