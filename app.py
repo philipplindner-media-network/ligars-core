@@ -373,7 +373,7 @@ def get_equipment_request_link(proband_name, product_name):
 def send_discipline_mail(target_email, subject_name, ai_feedback):
     try:
         # Config sicher laden
-        conf, decrypted_password = get_decrypted_config()
+        conf, decrypted_password = get_decrypted_password()
 
         # --- KONFIGURATION AUS DER CONFIG.JSON ---
         SMTP_SERVER = conf['SMTP_SERVER']
