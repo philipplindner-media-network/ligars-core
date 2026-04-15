@@ -2,21 +2,54 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>LIGARS // SYSTEM_CRITICAL</title>
+    <title>LIGARS // ERROR_{{ code }}</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <style>
-        :root { --bg: #050505; --danger: #ff0055; --accent: #00ffcc; }
-        body { background: var(--bg); color: var(--danger); font-family: 'Share Tech Mono', monospace; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; text-align: center; }
-        .glitch-box { border: 2px solid var(--danger); padding: 40px; background: rgba(255, 0, 85, 0.1); box-shadow: 0 0 30px var(--danger); }
-        h1 { font-family: 'Orbitron'; font-size: 3rem; margin: 0; }
-        .back-link { color: var(--accent); text-decoration: none; border: 1px solid var(--accent); padding: 10px 20px; display: inline-block; margin-top: 20px; }
+        :root { --bg: #050505; --red: #ff0055; --accent: #00ffcc; }
+        body {
+            background: var(--bg); color: #fff; font-family: 'Share Tech Mono', monospace;
+            display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;
+            overflow: hidden;
+        }
+        .error-container {
+            border: 2px solid var(--red); background: rgba(255, 0, 85, 0.05);
+            padding: 40px; width: 80%; max-width: 600px; position: relative;
+            box-shadow: 0 0 30px rgba(255, 0, 85, 0.2);
+        }
+        .glitch-text { font-family: 'Orbitron'; color: var(--red); letter-spacing: 5px; font-size: 2rem; }
+        .info-row { margin-top: 20px; border-top: 1px solid rgba(255, 0, 85, 0.3); padding-top: 10px; }
+        .label { color: var(--red); font-size: 0.8rem; text-transform: uppercase; }
+        .value { color: #fff; font-size: 1.1rem; }
+        .btn-back {
+            display: inline-block; margin-top: 30px; padding: 10px 20px;
+            border: 1px solid var(--accent); color: var(--accent); text-decoration: none;
+            text-transform: uppercase; font-size: 0.8rem;
+        }
     </style>
 </head>
 <body>
-    <div class="glitch-box">
-        <h1>ERROR_{{ code }}</h1>
-        <p>{{ msg }}</p>
-        <a href="/" class="back-link">ZURÜCK_ZUM_CORE</a>
+
+    <div class="error-container">
+        <div class="glitch-text">ERROR_{{ code }}</div>
+        <div style="color: var(--red); font-weight: bold; margin-bottom: 20px;">>> {{ msg }}</div>
+
+        <div class="info-row">
+            <div class="label">Fehler-Ident-ID:</div>
+            <div class="value">{{ id }}</div>
+        </div>
+
+        <div class="info-row">
+            <div class="label">System-Analyse:</div>
+            <div class="value">{{ details }}</div>
+        </div>
+
+        <p style="font-size: 0.8rem; color: #666; margin-top: 20px;">
+            Der Vorfall wurde automatisch an den Administrator (LIGARS_MAIN) gemeldet.
+            Bitte warten Sie auf die Re-Initialisierung des Kerns.
+        </p>
+
+        <a href="/" class="btn-back">ZUM_HAUPTSYSTEM_NEUSTART</a>
     </div>
+
 </body>
 </html>
