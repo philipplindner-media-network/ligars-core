@@ -4,240 +4,175 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LIGARS // {{ "UPDATE" if is_mobile_update else "CORE" }}</title>
+    <title>LIGARS // CORE</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg: #050505;
             --accent: #00ffcc;
-            --accent-dim: rgba(0, 255, 204, 0.15);
+            --accent-dim: rgba(0, 255, 204, 0.1);
             --danger: #ff0055;
-            --panel-bg: rgba(10, 10, 10, 0.95);
-            --border: 1px solid var(--accent);
         }
 
         body {
             background-color: var(--bg);
-            background-image:
-                linear-gradient(var(--accent-dim) 1px, transparent 1px),
-                linear-gradient(90deg, var(--accent-dim) 1px, transparent 1px);
+            background-image: linear-gradient(var(--accent-dim) 1px, transparent 1px), linear-gradient(90deg, var(--accent-dim) 1px, transparent 1px);
             background-size: 50px 50px;
-            color: #e0e0e0;
+            color: #ffffff;
             font-family: 'Share Tech Mono', monospace;
-            margin: 0; padding-bottom: 80px;
-            line-height: 1.5;
-            overflow-x: hidden;
+            margin: 0; padding: 0;
+            line-height: 1.3;
         }
 
-        /* --- HEADER STATUS BAR --- */
-        .system-header {
-            background: var(--accent);
-            color: #000;
-            padding: 8px 20px;
-            display: flex; justify-content: space-between;
-            font-family: 'Orbitron'; font-weight: bold; font-size: 0.75rem;
+        /* NAVIGATION */
+        nav {
+            background: rgba(0, 0, 0, 0.9);
+            border-bottom: 2px solid var(--accent);
+            padding: 15px 25px;
+            display: flex; gap: 25px;
             position: sticky; top: 0; z-index: 1000;
-            box-shadow: 0 5px 15px rgba(0, 255, 204, 0.3);
+        }
+        nav a { color: #fff; text-decoration: none; font-family: 'Orbitron'; font-size: 0.8rem; }
+        nav a:hover { color: var(--accent); text-shadow: 0 0 8px var(--accent); }
+        .nav-danger {
+    color: var(--danger) !important;
+    border: 1px solid var(--danger);
+    padding: 5px 10px;
+    border-radius: 3px;
+    animation: pulse-red 2s infinite;
+}
+
+        .container { max-width: 850px; margin: 20px auto; padding: 20px;  background-color: #000; }
+
+        /* STATUS BOX */
+        .status-box {
+            background-color: transparent !important;
+            border: 1px solid var(--accent);
+            padding: 25px;
+            margin-bottom: 20px;
         }
 
-        .container { max-width: 900px; margin: 40px auto; padding: 0 25px; }
-
-        /* --- AI ANALYSE BOX --- */
-        .ai-box {
-            background: var(--panel-bg);
-            border: var(--border);
-            position: relative;
-            margin-bottom: 40px;
-            box-shadow: 0 0 30px rgba(0, 255, 204, 0.05);
+        /* KI-INHALTE FILTER (WICHTIG!) */
+        #ai-target {
+            color: #e0e0e0 !important; /* Angenehmes Weiß/Grau */
+            background-color: transparent !important;
         }
+        #ai-target strong { color: var(--accent); } /* Wichtige Wörter in Cyan */
+        #ai-target .warning { color: var(--danger); animation: blink 1s infinite; }
 
-        .ai-header {
-            background: var(--accent-dim);
-            padding: 10px 20px;
-            border-bottom: var(--border);
-            display: flex; align-items: center;
-            font-family: 'Orbitron'; font-size: 0.7rem; color: var(--accent);
-        }
+        /* INPUTS & FORMULARE */
+        .input-panel { background: #0a0a0a; border: 1px solid var(--accent); padding: 20px; margin-top: 30px; }
+        .input-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
+        .field { display: flex; flex-direction: column; margin-bottom: 10px; }
+        .field label { font-size: 0.7rem; color: var(--accent); text-transform: uppercase; }
 
-        .ai-content {
-            padding: 35px;
-            font-size: 1.1rem;
-            color: #fff;
-            letter-spacing: 0.5px;
-            border-left: 4px solid var(--danger);
-            margin: 15px;
-            background: rgba(255, 0, 85, 0.02);
-            min-height: 100px;
+        input, textarea { background: #111 !important; border: 1px solid #333 !important; color: var(--accent) !important; padding: 10px; }
+        .btn-main { background: var(--accent); color: #000; border: none; padding: 12px; width: 100%; font-family: 'Orbitron'; font-weight: bold; cursor: pointer; }
+        .btn-shutdown { background: transparent; color: var(--danger); border: 1px solid var(--danger); padding: 10px; width: 100%; margin-top: 40px; cursor: pointer; }
+        .nav-forum-link {
+            color: var(--accent);
+            animation: blink 4s infinite;
         }
 
-        /* --- INPUT PANEL --- */
-        .input-panel {
-            background: var(--panel-bg);
-            border: 1px solid #333;
-            padding: 30px;
-            margin-bottom: 30px;
+        @keyframes blink {
+            0%, 90%, 100% { opacity: 1; }
+            92% { opacity: 0.5; }
+            94% { opacity: 0.8; }
+            96% { opacity: 0.2; }
+            98% { opacity: 1; }
         }
-
-        h2 {
-            font-family: 'Orbitron'; color: var(--accent); font-size: 1.1rem;
-            margin-bottom: 25px; letter-spacing: 2px; border-bottom: 1px solid #222;
-            padding-bottom: 10px;
-        }
-
-        .input-grid {
-            display: grid; grid-template-columns: repeat(3, 1fr); gap: 25px;
-            margin-bottom: 30px;
-        }
-
-        .field { display: flex; flex-direction: column; }
-        label {
-            font-family: 'Orbitron'; font-size: 0.65rem; color: var(--accent);
-            margin-bottom: 10px; text-transform: uppercase; opacity: 0.8;
-        }
-
-        input, textarea {
-            background: #000; border: 1px solid #444; color: #fff;
-            padding: 12px; font-family: 'Share Tech Mono'; font-size: 1rem;
-            transition: 0.3s;
-        }
-        input:focus, textarea:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 10px var(--accent-dim); }
-
-        .btn-main {
-            width: 100%; background: transparent; border: 1px solid var(--accent);
-            color: var(--accent); padding: 18px; font-family: 'Orbitron';
-            font-weight: bold; cursor: pointer; letter-spacing: 4px; transition: 0.4s;
-        }
-        .btn-main:hover { background: var(--accent); color: #000; box-shadow: 0 0 25px var(--accent); }
-
-        /* --- NAVIGATION --- */
-        .nav-bar {
-            display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;
-            margin-top: 20px;
-        }
-        .nav-item {
-            border: 1px solid #222; color: #666; padding: 15px; text-align: center;
-            text-decoration: none; font-family: 'Orbitron'; font-size: 0.7rem; transition: 0.3s;
-        }
-        .nav-item:hover { border-color: var(--accent); color: #fff; background: var(--accent-dim); }
-
-        /* --- SHUTDOWN --- */
-        .shutdown-container {
-            margin-top: 60px; padding: 25px; border-top: 1px dashed #333; text-align: center;
-        }
-        .btn-shutdown {
-            background: none; border: 1px solid var(--danger); color: var(--danger);
-            font-family: 'Orbitron'; font-size: 0.65rem; padding: 10px 20px;
-            cursor: pointer; transition: 0.3s; letter-spacing: 2px;
-        }
-        .btn-shutdown:hover { background: var(--danger); color: #fff; box-shadow: 0 0 15px var(--danger); }
-
-        @media (max-width: 650px) { .input-grid, .nav-bar { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
 {% endif %}
 
-    <div class="system-header">
-        <span>SYSTEM: LIGARS_CORE_V2.5</span>
-        <span>STATUS: ÜBERWACHUNG AKTIV</span>
-        <span>PROBAND: {{ proband_name }}</span>
-    </div>
+    {% if not is_ajax %}
+    <nav>
+        <div style="color: var(--accent); font-family: 'Orbitron'; font-weight: bold; margin-right: 15px;">LIGARS_OS</div>
+        <a href="/">[ CORE ]</a>
+        <a href="/shopping">[ SHOPPING ]</a>
+        <a href="/plan">[ PLAN ]</a>
+        <a href="/archiv">[ ARCHIV ]</a>
+        <a href="https://ligars.any64.de/Strafbuch/" target="_blank" class="nav-danger"> STRAFBUCH</a>
+        <a href="https://www.kichan-forum.any64.de/forum/index.php?board/23-ligars-terminal/" target="_blank" style="color: #ff0055; border-left: 1px solid #333; padding-left: 15px;"><span style="opacity: 0.5;">[EXT]</span> TERMINAL_FORUM</a>
+    </nav>
+    {% endif %}
 
     <div class="container">
+    {% if session.generated_pw %}
+<div class="status-box" style="border: 1px solid var(--accent); background: rgba(0, 255, 204, 0.05); padding: 15px; margin-bottom: 20px;">
+    <h3 style="color: var(--accent); margin: 0; font-size: 0.8rem;">[SYSTEM_ACCESS_GRANTED]</h3>
+    <p>Dein Account für das <strong>LIGARS Terminal</strong> wurde erstellt.</p>
+    <p>Passwort: <code style="color: var(--accent); background: #111; padding: 2px 5px;">{{ session.generated_pw }}</code></p>
 
-        <div class="ai-box">
-            <div class="ai-header">
-                <span style="margin-right: 10px; color: #ff0055;">●</span> LIGARS_ANALYSE_PROTOKOLL // TAG_{{ tag }}
-            </div>
-            <div class="ai-content">
-                <div id="ai-source" style="display:none;">{{ feedback|safe }}</div>
-                <div id="ai-target"></div>
+    <div style="margin-top: 15px;">
+        <a href="https://www.kichan-forum.any64.de/" target="_blank"
+           style="background: var(--accent); color: black; padding: 8px 15px; text-decoration: none; font-weight: bold; font-size: 0.8rem; display: inline-block;">
+           ZUM_TERMINAL_LOGIN >>>
+        </a>
+    </div>
 
-                {% if "[SANKTION_AKTIVIERT]" in feedback %}
-                <div style="margin-top: 20px; font-size: 0.7rem; color: var(--danger); border-top: 1px solid rgba(255,0,85,0.2); padding-top: 10px;">
-                    <i class="fas fa-exclamation-triangle"></i> SANKTION_ÜBERMITTELT // MAIL_STATUS: DISPATCHED
+    <p style="font-size: 0.7rem; color: #888; margin-top: 10px;">Notiere dir das Passwort. Es wird aus Sicherheitsgründen nur einmal angezeigt.</p>
+</div>
+{% endif %}
+        <div class="status-box">
+            <div style="color: var(--accent); font-size: 0.75rem; text-align: right;">PROBAND: {{ proband_name }} // TAG: {{ tag }}</div>
+            <h3 style="color: var(--accent); margin-top: 0; font-family: 'Orbitron';">BEFEHL: {{ stundenplan }}</h3>
+
+            <div id="ai-source" style="display:none;">{{ feedback | safe }}</div>
+            <div id="ai-target"></div>
+
+            {% if qr_code_img %}
+            <div style="margin-top: 20px; padding: 15px; border: 1px solid #222; display: flex; justify-content: space-between; align-items: center; background: rgba(0,255,204,0.02);">
+                <div>
+                    <h3 style="font-family: 'Orbitron'; color: var(--accent); margin: 0; font-size: 0.8rem;">[ MOBILE_SYNC ]</h3>
+                    <p style="font-size: 0.65rem; color: #666;">Code scannen für Upload.</p>
                 </div>
-                {% endif %}
+                <img src="data:image/png;base64,{{ qr_code_img }}" style="width: 70px; height: 70px; border: 1px solid var(--accent); background: #fff; padding: 2px;">
             </div>
+            {% endif %}
 
-            <form method="POST" action="/" style="padding: 0 35px 30px 35px;">
-                <div style="display:flex; align-items: center; border-top: 1px solid #222; padding-top: 20px;">
-                    <span style="color:var(--accent); margin-right: 15px; font-weight: bold;">></span>
-                    <input type="text" name="user_interaction" placeholder="Status bestätigen..."
-                           style="background:transparent; border:none; width:100%; padding:0; color:var(--accent);" autocomplete="off">
+            <form method="POST" action="/" style="margin-top: 20px;">
+                <div style="display:flex; align-items: center; border-top: 1px solid #222; padding-top: 15px;">
+                    <span style="color:var(--accent); font-weight: bold; margin-right: 10px;">></span>
+                    <input type="text" name="user_interaction" placeholder="Status bestätigen..." style="background:transparent !important; border:none !important; width:100%; color:var(--accent);" autocomplete="off">
                 </div>
             </form>
         </div>
 
         <div class="input-panel">
-            <h2>BIOMETRIE_ERFASSUNG</h2>
+            <h2 style="font-family: 'Orbitron'; font-size: 0.9rem; color: var(--accent); margin-top: 0;">BIOMETRIE_ERFASSUNG</h2>
             <form action="/add{% if is_mobile_update %}?mode=update&token=LIGARS_UPDATE_ACCESS_77{% endif %}" method="POST" enctype="multipart/form-data">
                 <div class="input-grid">
-                    <div class="field"><label>Taille (cm)</label><input type="number" step="0.1" name="taille" required placeholder="0.0"></div>
-                    <div class="field"><label>Brust (cm)</label><input type="number" step="0.1" name="brust" placeholder="0.0"></div>
-                    <div class="field"><label>Hals (cm)</label><input type="number" step="0.1" name="hals" placeholder="0.0"></div>
+                    <div class="field"><label>Taille (cm)</label><input type="number" step="0.1" name="taille" required></div>
+                    <div class="field"><label>Brust (cm)</label><input type="number" step="0.1" name="brust"></div>
+                    <div class="field"><label>Hals (cm)</label><input type="number" step="0.1" name="hals"></div>
                 </div>
-                <div class="field" style="margin-bottom:25px;">
-                    <label>Protokoll-Notizen</label>
-                    <textarea name="notizen" rows="3" placeholder="Besonderheiten im Tagesablauf..."></textarea>
-                </div>
-                <div class="field" style="margin-bottom:30px;">
-                    <label>Visuelle Beweise</label>
-                    <input type="file" name="fotos" multiple accept="image/*" style="border:none; padding:0;">
-                </div>
+                <div class="field"><label>Notizen</label><textarea name="notizen" rows="2"></textarea></div>
+                <div class="field"><label>Fotos</label><input type="file" name="fotos" multiple accept="image/*" style="border:none !important;"></div>
                 <button type="submit" class="btn-main">DATEN_ÜBERMITTELN</button>
             </form>
         </div>
 
-        <div class="nav-bar">
-            <a href="/plan" class="nav-item">MISSIONSPLAN</a>
-             <a href="/print_plan"></a>
-            <a href="/archiv" class="nav-item">ARCHIV</a>
-            <a href="/shopping" class="nav-item">LOGISTIK</a>
-        </div>
-
-        {% if not is_mobile_update and qr_code_img %}
-        <div style="margin-top: 40px; padding: 20px; border: 1px solid #222; display: flex; justify-content: space-between; align-items: center; background: rgba(0,255,204,0.02);">
-            <div>
-                <h3 style="font-family: 'Orbitron'; color: var(--accent); margin: 0 0 5px 0; font-size: 0.8rem;">[ MOBILE_SYNC ]</h3>
-                <p style="font-size: 0.65rem; color: #666; margin: 0;">Code scannen für direkten Foto-Upload.</p>
-            </div>
-            <img src="data:image/png;base64,{{ qr_code_img }}" style="width: 80px; height: 80px; border: 1px solid var(--accent); padding: 5px; background: #fff;">
-        </div>
+        {% if not is_mobile_update %}
+        <form action="/emergency_shutdown" method="POST" onsubmit="return confirm('TERMINIERUNG BESTÄTIGEN?');">
+            <button type="submit" class="btn-shutdown">TERMINATE_CORE_PROCESS</button>
+        </form>
         {% endif %}
+    </div>
 
-        <div class="shutdown-container">
-            <form action="/emergency_shutdown" method="POST" onsubmit="localStorage.removeItem('ligars_fs'); return confirm('TERMINIERUNG BESTÄTIGEN?\nBackup der database.db wird erstellt.');">
-                <button type="submit" class="btn-shutdown">TERMINATE_LIGARS_CORE</button>
-            </form>
-        </div>
-
-    </div> <script>
-        function runTypewriter() {
+    <script>
+        function initializeCore() {
             const source = document.getElementById('ai-source');
             const target = document.getElementById('ai-target');
-            if (!source || !target) return;
-
-            const htmlContent = source.innerHTML;
-            let idx = 0;
-            target.innerHTML = "";
-
-            function type() {
-                if (idx < htmlContent.length) {
-                    if (htmlContent.charAt(idx) === '<') {
-                        idx = htmlContent.indexOf('>', idx) + 1;
-                    } else {
-                        idx++;
-                    }
-                    target.innerHTML = htmlContent.substring(0, idx);
-                    setTimeout(type, 15);
-                }
+            if (source && target) {
+                target.innerHTML = source.innerHTML;
             }
-            type();
+            console.log("LIGARS_CORE: System initialisiert.");
         }
 
-        // Startet Typewriter sofort (auch nach AJAX-Injektion)
-        runTypewriter();
+        // Führe es sofort aus, falls das Skript nach dem DOM-Aufbau geladen wird
+        initializeCore();
     </script>
 
 {% if not is_ajax %}

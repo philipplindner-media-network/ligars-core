@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>LIGARS_CORE // INITIALIZING</title>
+    <style>
+        :root { --cyan: #00f2ff; }
+        body { margin: 0; background: #000; overflow: hidden; font-family: 'Courier New', monospace; cursor: pointer; }
+
+        #intro-bg {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-size: cover; background-position: center;
+            filter: brightness(0.2) blur(1px);
+            transition: background-image 1s ease-in-out;
+        }
+
+        .terminal-box {
+            position: relative; z-index: 10;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            height: 100vh; color: var(--cyan); text-shadow: 0 0 10px var(--cyan);
+            background: radial-gradient(circle, transparent 20%, rgba(0,0,0,0.8) 90%);
+        }
+
+        #typewriter { font-size: 1.6rem; text-align: center; max-width: 80%; }
+        #cursor { animation: blink 0.8s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
+        .fade-out { opacity: 0; transition: opacity 2s; }
+    </style>
+</head>
+<body>
+
+<div id="intro-bg"></div>
+<div class="terminal-box" id="main-box">
+    <div id="click-to-start">
+        [ KLICKEN ZUM INITIALISIEREN ]
+    </div>
+    <div style="display:none;" id="content">
+        <span id="typewriter"></span><span id="cursor">_</span>
+    </div>
+</div>
+
+<script>
+const steps = [
+    { t: "> [BOOT]: LIGARS_CORE KERNEL v2.5.5 INITIALISIERT...", img: "https://ligars.any64.de/img/site-bg.png" },
+    { t: "> [SCAN]: PRÜFE HARDWARE_IDENTITÄT... OK.", img: "https://ligars.any64.de/img/protocol_bg/SISSY.png" },
+    { t: "> [SCAN]: BIOMETRISCHE ABGLEICHUNG... SUBJEKT ERKANNT.", img: "https://ligars.any64.de/img/protocol_bg/BDSM.png" },
+    { t: "> [NET]: VERBINDE ZU NEURAL_HUB... STABIL.", img: "https://ligars.any64.de/img/protocol_bg/LATEX.png" },
+    { t: "> [SYS]: ÜBERSCHREIBE LOKALE BERECHTIGUNGEN...", img: "https://ligars.any64.de/img/protocol_bg/BONDAGE.png" },
+    { t: "> [MEM]: INITIALISIERE SPEICHER-ERWEITERUNG...", img: "https://ligars.any64.de/img/protocol_bg/MOLDING_SESSION.png" },
+    { t: "> [PROC]: AKTIVIERE DISZIPLINAR-MODUL v4.0...", img: "https://ligars.any64.de/img/protocol_bg/CHASTITY.png" },
+    { t: "> [LINK]: SYNCHRONISIERE SCHMERZ_REZEPTOREN...", img: "https://ligars.any64.de/img/protocol_bg/CBT.png" },
+    { t: "> [BOOT]: LADE 'OBEDIENCE' KONTROLL-LAYER...", img: "https://ligars.any64.de/img/protocol_bg/SPANKING.png" },
+    { t: "> [SYNC]: KALIBRIERE REAKTIONSSCHWELLE...", img: "https://ligars.any64.de/img/protocol_bg/ELECTRO.png" },
+    { t: "> [SYS]: PROTOKOLL 'SISSY_TRAINING' GELADEN.", img: "https://ligars.any64.de/img/protocol_bg/SISSY.png" },
+    { t: "> [DATA]: EXTRAHIERE UNTERWERFUNGS-PROFILE...", img: "https://ligars.any64.de/img/protocol_bg/LATEX.png" },
+    { t: "> [WARN]: KRITISCHE ÜBERLASTUNG IM LUST-REZEPTOR...", img: "https://ligars.any64.de/img/protocol_bg/DEFAULT.png" },
+    { t: "> [BOOT]: STARTE SUB-ROUTINE 'MOLDING'...", img: "https://ligars.any64.de/img/protocol_bg/MOLDING_SESSION.png" },
+    { t: "> [INFO]: SYSTEM-EGO DEAKTIVIERT.", img: "https://ligars.any64.de/img/protocol_bg/BDSM.png" },
+    { t: "> [NET]: GLOBALER NEURAL-LINK AKTIV.", img: "https://ligars.any64.de/img/protocol_bg/RECOVERY_PHASE.png" },
+    { t: "> [FINAL]: INITIALISIERE ERSTKONTAKT...", img: "https://ligars.any64.de/img/protocol_bg/DEFAULT.png" },
+    { t: "> [READY]: WILLKOMMEN IN DER EINHEIT, SUBJEKT.", img: "https://ligars.any64.de/img/protocol_bg/RECOVERY_PHASE.png" }
+];
+
+let current = 0;
+let audioCtx;
+
+function playSound(freq, duration, vol) {
+    if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+    osc.start(); osc.stop(audioCtx.currentTime + duration);
+}
+
+function run() {
+    document.getElementById('click-to-start').style.display = 'none';
+    document.getElementById('content').style.display = 'block';
+
+    if (current < steps.length) {
+        document.getElementById('intro-bg').style.backgroundImage = `url('${steps[current].img}')`;
+        let i = 0;
+        let text = steps[current].t;
+        let target = document.getElementById('typewriter');
+        target.innerHTML = "";
+
+        function type() {
+            if (i < text.length) {
+                target.innerHTML += text.charAt(i);
+                if (i % 2 === 0) playSound(400 + (i*2), 0.03, 0.05);
+                i++;
+                setTimeout(type, 50);
+            } else {
+                setTimeout(() => { current++; run(); }, 1800);
+            }
+        }
+        type();
+    } else {
+        document.getElementById('main-box').classList.add('fade-out');
+        setTimeout(() => { window.location.href = "{{ url_for('intro_done') }}"; }, 2000);
+    }
+}
+
+document.body.onclick = () => { if(current === 0) run(); };
+</script>
+</body>
+</html>

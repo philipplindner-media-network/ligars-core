@@ -19,24 +19,27 @@
         .boot-container {
             width: 80%;
             max-width: 600px;
-            display: none; /* Erst nach Klick zeigen */
+            display: none;
         }
         .start-overlay {
             text-align: center;
             cursor: pointer;
-            border: 1px solid #00ffcc; /* Fix: var(--accent) zu hartem Wert */
+            border: 1px solid #00ffcc;
             padding: 40px;
             background: rgba(0, 255, 204, 0.05);
             transition: 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 2px;
         }
         .start-overlay:hover {
             box-shadow: 0 0 30px rgba(0, 255, 204, 0.2);
+            background: rgba(0, 255, 204, 0.1);
         }
         .line {
             margin: 5px 0;
             opacity: 0;
             animation: fadeIn 0.1s forwards;
-            font-size: 14px;
+            font-size: 0.9rem;
         }
         @keyframes fadeIn { to { opacity: 1; } }
 
@@ -44,9 +47,9 @@
             width: 0%;
             height: 2px;
             background: #00ffcc;
-            box-shadow: 0 0 10px #00ffcc;
             margin-top: 20px;
-            animation: load 3s forwards ease-in-out; /* Etwas schneller */
+            box-shadow: 0 0 10px #00ffcc;
+            animation: load 3s forwards;
         }
         @keyframes load { to { width: 100%; } }
     </style>
@@ -54,33 +57,26 @@
 <body>
 
 <div id="start-trigger" class="start-overlay">
-    <h2 style="letter-spacing: 5px;">[ SYSTEM_ACCESS_REQUIRED ]</h2>
-    <p style="font-size: 0.8rem; opacity: 0.7;">KLICKEN ZUM INITIALISIEREN DER ÜBERWACHUNG</p>
+    [ SYSTEM_REINITIALIZE ]<br>
+    <span style="font-size: 0.6rem; opacity: 0.6;">Klicken um Kern zu starten</span>
 </div>
 
-<div class="boot-container" id="terminal">
-    </div>
+<div id="terminal" class="boot-container"></div>
 
 <script>
     const trigger = document.getElementById('start-trigger');
     const terminal = document.getElementById('terminal');
 
     const lines = [
-        "> INITIALIZING LIGARS_CORE ENCRYPTION...",
-        "> REQUESTING FULLSCREEN_PRIVILEGES... [GRANTED]",
-        "> LOADING BIOMETRIC_SCANNER... [OK]",
-        "> ESTABLISHING NEURAL_LINK... [STABLE]",
-        "> WARNING: ALL ACTIONS ARE BEING MONITORED.",
-        "> ACCESS GRANTED. WELCOME MASTER."
+        "> Bypassing security protocols...",
+        "> Establishing neural link...",
+        "> Loading LIGARS_CORE v2.5.5...",
+        "> Checking Biometric sensors...",
+        "> Accessing Vault encryption...",
+        "> READY."
     ];
 
-    async function startBoot() {
-        const elem = document.documentElement;
-        try {
-            if (elem.requestFullscreen) await elem.requestFullscreen();
-            else if (elem.webkitRequestFullscreen) await elem.webkitRequestFullscreen();
-        } catch (err) { console.warn("FS_ERROR:", err); }
-
+    function startBoot() {
         trigger.style.display = 'none';
         terminal.style.display = 'block';
 
@@ -95,34 +91,33 @@
                     const bar = document.createElement('div');
                     bar.className = 'progress-bar';
                     terminal.appendChild(bar);
-                    // Start des AJAX-Ladevorgangs
-                    loadCoreSystem();
+                    // Start des stabilen AJAX-Ladevorgangs
+                    setTimeout(loadCoreSystem, 3200);
                 }
             }, i * 400);
         });
     }
 
     async function loadCoreSystem() {
-        await new Promise(r => setTimeout(r, 3500)); // Warte auf Animation
         try {
-            const response = await fetch("{{ url_for('index') }}", {
+            const response = await fetch("/", {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });
+
+            if (!response.ok) throw new Error("Network response was not ok");
+
             const html = await response.text();
 
-            // Nahtloser Austausch
-            document.body.innerHTML = html;
+            // Wir ersetzen den kompletten Body-Inhalt
+            // Das sorgt dafür, dass das CSS der index.html (da is_ajax aktiv ist)
+            // korrekt interpretiert wird.
+            document.open();
+            document.write(html);
+            document.close();
 
-            // Re-Initialisierung der Scripte (Typewriter etc.)
-            const scripts = document.body.getElementsByTagName('script');
-            for (let script of scripts) {
-                const newScript = document.createElement("script");
-                if (script.src) newScript.src = script.src;
-                else newScript.textContent = script.textContent;
-                document.body.appendChild(newScript);
-            }
         } catch (e) {
-            window.location.href = "{{ url_for('index') }}"; // Fallback
+            console.error("Ladefehler:", e);
+            window.location.href = "/"; // Fallback: Seite normal neu laden
         }
     }
 

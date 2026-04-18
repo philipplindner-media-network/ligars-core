@@ -11,6 +11,7 @@ from logger_system import LigarsLogger
 from mainframe_sync import sync_stats_to_mainframe
 import datetime
 from datetime import datetime, date, timedelta
+from email.utils import formatdate, make_msgid
 import qrcode
 import io
 import base64
@@ -19,6 +20,10 @@ from email.mime.multipart import MIMEMultipart
 import signal
 import shutil
 import threading
+import uuid
+import platform
+import sys
+import requests
 
 # --- 1. DEINE IMPORTIERTEN MODULE ---
 from mainframe_sync import sync_stats_to_mainframe
@@ -28,20 +33,23 @@ from ai_handler import generate_ai_content
 
 # --- 2. HILFSFUNKTIONEN ---
 def get_decrypted_password():
-    # Wir laden den Schlüssel aus der Umgebungsvariable des Systems
-    key = os.getenv('G7cGxyUt7iaqtz_PRTurZGv3w0KDO83KET5mxfMcSPs=')
-    if not key:
-        print("KRITISCH: Umgebungsvariable LIGARS_MASTER_KEY fehlt!")
-        return None
+    # FEST HINTERLEGTER SCHLÜSSEL (Keine Umgebungsvariable mehr nötig)
+    key = "G7cGxyUt7iaqtz_PRTurZGv3w0KDO83KET5mxfMcSPs="
 
-    cipher_suite = Fernet(key.encode())
+    try:
+        cipher_suite = Fernet(key.encode())
 
-    # Config laden
-    with open('config.json', 'r') as f:
-        conf = json.load(f)
+        # Config laden
+        with open('config.json', 'r') as f:
+            conf = json.load(f)
 
-    encrypted_pass = conf['SMTP_PASS_ENCRYPTED'].encode()
-    return cipher_suite.decrypt(encrypted_pass).decode()
+        # SMTP_PASS_ENCRYPTED in der config.json muss existieren
+        encrypted_pass = conf['SMTP_PASS'].encode() # Ich habe hier 'SMTP_PASS' gewählt
+        return conf, cipher_suite.decrypt(encrypted_pass).decode()
+
+    except Exception as e:
+        print(f"KRITISCH: Fehler beim Entschlüsseln: {e}")
+        return None, None
 
 def get_local_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -57,17 +65,34 @@ def get_local_ip():
 def load_config():
     path = 'config.json'
     defaults = {"WEB_PASSWORD": "Sissy2026", "SMTP_PORT": 587, "GEMINI_API_KEY": ""}
+    
     if os.path.exists(path):
         try:
-            with open(path, 'r') as f:
-                return {**defaults, **json.load(f)}
-        except:
-            print("ERR: config.json korrupt!")
+            # WICHTIG: encoding='utf-8' hinzugefügt
+            with open(path, 'r', encoding='utf-8') as f:
+                content = f.read().strip()
+                if not content:
+                    print("ERR: config.json ist leer!")
+                    return defaults
+                
+                loaded_config = json.loads(content)
+                # Zusammenführen der Defaults mit der geladenen Datei
+                config = {**defaults, **loaded_config}
+                
+                # Globales genai-Objekt konfigurieren, falls Key vorhanden
+                if config.get("GEMINI_API_KEY"):
+                    genai.configure(api_key=config["GEMINI_API_KEY"])
+                    
+                return config
+        except Exception as e:
+            # Gibt jetzt den genauen Fehler aus (z.B. JSON-Syntaxfehler)
+            print(f"ERR: config.json konnte nicht gelesen werden! Details: {e}")
+    
     return defaults
 
 # --- 3. INITIALISIERUNG (REIHENFOLGE WICHTIG!) ---
 CONF = load_config()
-CURRENT_VERSION = "2.5"
+CURRENT_VERSION = "2.5.5"
 UPDATE_URL = "https://ligars.any64.de/api/version.php"
 SECRET_KEY = b'gPLIpSmeSmXEJ1mZIjSaSv-icwrlVAX2QwFSCwlxt8c='
 
@@ -84,7 +109,10 @@ if CONF.get('GEMINI_API_KEY'):
     genai.configure(api_key=CONF['GEMINI_API_KEY'])
 
 def check_for_updates():
-    # 1. Startmeldung an den Logger
+    def v_to_int(v):
+        try: return int(str(v).replace(".", ""))
+        except: return 0
+
     LigarsLogger.log("SYS", f"LIGARS_CORE v{CURRENT_VERSION} prüft auf Updates...")
 
     try:
@@ -94,35 +122,51 @@ def check_for_updates():
             remote_version = data.get("version")
             expected_hash = data.get("update_sha256")
 
-            # Versions-Vergleich
-            if remote_version and float(remote_version) > float(CURRENT_VERSION):
+            if remote_version and v_to_int(remote_version) > v_to_int(CURRENT_VERSION):
                 LigarsLogger.log("SYS", f"NEUE VERSION GEFUNDEN: v{remote_version}")
 
-                u_res = requests.get(data.get("download_url"), timeout=15)
+                # 1. SICHERUNG: Config in den Arbeitsspeicher laden
+                config_backup = None
+                if os.path.exists("config.json"):
+                    with open("config.json", "r") as f:
+                        config_backup = f.read()
+                    LigarsLogger.log("SYS", "Konfiguration wurde zwischengespeichert.")
 
-                # 2. INTEGRITÄTS-CHECK (Verhindert korrupte Dateien)
+                # Download
+                u_res = requests.get(data.get("download_url"), timeout=15)
                 actual_hash = hashlib.sha256(u_res.content).hexdigest()
 
                 if actual_hash != expected_hash:
-                    LigarsLogger.log("ERR", "SICHERHEITS-ALARM!", f"Hash-Mismatch! Erwartet: {expected_hash[:10]}... Ist: {actual_hash[:10]}...")
+                    LigarsLogger.log("ERR", "SICHERHEITS-ALARM!", "Hash-Mismatch!")
                     return False
 
-                # 3. Installation & Entpacken
-                LigarsLogger.log("SYS", "Integrität bestätigt. Entpacke Update-Paket...")
+                # 2. ENTPACKEN
+                LigarsLogger.log("SYS", "Entpacke Update-Paket...")
                 with zipfile.ZipFile(io.BytesIO(u_res.content)) as z:
                     z.extractall(".")
 
-                # 4. Automatischer Neustart des Python-Prozesses
-                LigarsLogger.log("SYS", "Update erfolgreich installiert. Kern-Neustart eingeleitet.")
-                os.execv(sys.executable, ['python'] + sys.argv)
+                # 3. WIEDERHERSTELLUNG: Config aus dem Speicher zurückschreiben
+                if config_backup:
+                    with open("config.json", "w") as f:
+                        f.write(config_backup)
+                    LigarsLogger.log("SYS", "Konfiguration erfolgreich wiederhergestellt.")
+
+                LigarsLogger.log("SYS", "Update fertig. Kern-Neustart eingeleitet...")
+
+                if platform.system() == "Windows":
+                     # Unter Windows: Starte einen neuen Prozess und beende den alten sofort
+                     import subprocess
+                     subprocess.Popen([sys.executable] + sys.argv, creationflags=subprocess.CREATE_NEW_CONSOLE)
+                     os._exit(0) 
+                else:
+                    # Unter Linux (Ubuntu): Der alte Weg ist hier weiterhin perfekt
+                    os.execv(sys.executable, ['python'] + sys.argv)
             else:
-                # Alles okay, keine Aktion nötig
-                LigarsLogger.log("SYS", "Kern-Integrität aktuell. Keine Updates erforderlich.")
+                LigarsLogger.log("SYS", "Keine Updates erforderlich.")
         else:
-            LigarsLogger.log("ERR", "Update-Server nicht erreichbar", f"HTTP Status: {res.status_code}")
+            LigarsLogger.log("ERR", "Update-Server nicht erreichbar")
 
     except Exception as e:
-        # Hier greift der Logger, falls z.B. kein Internet da ist
         LigarsLogger.log("ERR", "Update-Routine abgebrochen", str(e))
 
 
@@ -367,59 +411,122 @@ def get_equipment_request_link(proband_name, product_name):
 
     return mailto_link
 
+def sync_to_digital_strafbuch(target_email, subject_name, ai_feedback):
+    """Überträgt die Sanktion an den Webserver."""
+    api_url = "https://ligars.any64.de/api/strafbuch_sync.php"
 
+    payload = {
+        "api_key": "LIGARS_SECURE_SYNC_2026",
+        "email": target_email,
+        "name": subject_name,
+        "content": ai_feedback
+    }
 
+    try:
+        response = requests.post(api_url, json=payload, timeout=5)
+        if response.status_code == 200:
+            print(f">>> [WEB_SYNC]: Sanktion für {subject_name} im digitalen Strafbuch hinterlegt.")
+            return True
+    except Exception as e:
+        print(f">>> [WEB_SYNC_ERROR]: {e}")
+        return False
+
+import requests # Falls noch nicht oben importiert
+
+def create_forum_account(username, email, is_minor):
+    """Sende Daten an die ligars_sync.php auf dem Forum-Server."""
+    if is_minor:
+        return None
+
+    # 1. Ein sicheres Passwort für den User generieren
+    import secrets, string
+    alphabet = string.ascii_letters + string.digits
+    temp_pw = ''.join(secrets.choice(alphabet) for i in range(12))
+
+    # 2. Datenpaket schnüren
+    payload = {
+        'token': 'KIChanF206LIGARS_CORE', # Muss exakt wie in PHP sein!
+        'username': username,
+        'email': email,
+        'password': temp_pw
+    }
+
+    # 3. Den PHP-VIP-Eingang aufrufen
+    try:
+        url = "https://www.kichan-forum.any64.de/ligars_sync.php"
+        response = requests.post(url, data=payload, timeout=10)
+
+        if "SUCCESS" in response.text:
+            LigarsLogger.log("API", f"Forum-Account für {username} erfolgreich erstellt.")
+            return temp_pw
+        else:
+            LigarsLogger.log("ERR", f"Forum-Fehler: {response.text}")
+            return None
+    except Exception as e:
+        LigarsLogger.log("ERR", f"Verbindung zur Foren-Bridge fehlgeschlagen: {e}")
+        return None
 
 def send_discipline_mail(target_email, subject_name, ai_feedback):
     try:
         # Config sicher laden
         conf, decrypted_password = get_decrypted_password()
 
-        # --- KONFIGURATION AUS DER CONFIG.JSON ---
+        if not decrypted_password:
+            LigarsLogger.log("ERR", "Mail-Abbruch", "Passwort-Entschlüsselung fehlgeschlagen")
+            return
+
+        # --- KONFIGURATION ---
         SMTP_SERVER = conf['SMTP_SERVER']
-        SMTP_PORT = conf['SMTP_PORT'] # z.B. 465 für SSL
+        SMTP_PORT = int(conf['SMTP_PORT'])
         SENDER_EMAIL = conf['SMTP_USER']
-        SENDER_PASSWORD = decrypted_password # Das entschlüsselte Passwort
+        SENDER_PASSWORD = decrypted_password
 
-        msg = MIMEMultipart()
-        msg['From'] = f"LIGARS_CORE <{SENDER_EMAIL}>"
+        msg = MIMEMultipart('alternative')
+        msg['From'] = f"LIGARS CORE <{SENDER_EMAIL}>"
         msg['To'] = target_email
-        msg['Subject'] = f"[SANKTION_PROTOKOLL] // SUBJEKT: {subject_name.upper()}"
+        msg['Subject'] = f"Sanktion: Protokoll-Abweichung {subject_name}"
+        msg['Date'] = formatdate(localtime=True)
+        msg['Message-ID'] = make_msgid(domain="lindner-leipzig.eu")
 
-        formatted_feedback = ai_feedback.replace('\n', '<br>')
+        # Plain Text
+        text_content = f"Sanktions-Protokoll für {subject_name}.\n\n{ai_feedback}"
+        msg.attach(MIMEText(text_content, 'plain'))
 
+        # HTML Design
         html_content = f"""
         <html>
-        <body style="background-color: #020202; margin: 0; padding: 10px; font-family: 'Courier New', monospace;">
-            <div style="max-width: 600px; margin: 10px auto; background-color: #080808; border: 1px solid #00ffcc; padding: 20px;">
-                <div style="background-color: #00ffcc; color: #000; padding: 5px; font-weight: bold; text-align: center;">
-                    SYSTEM: LIGARS_CORE_v2.5 // STATUS: SANKTION_AKTIV
+        <body style="background-color: #020202; margin: 0; padding: 20px; font-family: 'Consolas', monospace; color: #eee;">
+            <div style="max-width: 600px; margin: auto; border: 1px solid #ff0055; padding: 20px; background-color: #050505;">
+                <div style="background-color: #ff0055; color: white; padding: 10px; text-align: center; font-weight: bold; letter-spacing: 2px;">
+                    LIGARS // SANKTIONS_PROTOKOLL
                 </div>
-                <div style="color: #00ffcc; margin-top: 20px;">
-                    > IDENTITÄT: {subject_name}<br>
-                    > TIMESTAMP: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}<br>
-                    <hr style="border: 0; border-top: 1px solid #1a1a1a;">
-                    <div style="padding: 15px; border-left: 4px solid #ff0055;">
-                        <span style="color: #ff0055;">[LOG_START]</span><br><br>
-                        {formatted_feedback}<br><br>
-                        <span style="color: #ff0055;">[LOG_END]</span>
-                    </div>
+                <p style="color: #888; font-size: 12px; border-bottom: 1px solid #222; padding-bottom: 10px;">
+                    ID: {subject_name.upper()} | TS: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+                </p>
+                <div style="padding: 15px; background: #0a0a0a; border-left: 3px solid #ff0055; white-space: pre-wrap;">
+                    {ai_feedback}
                 </div>
+                <p style="font-size: 10px; color: #444; margin-top: 20px; text-align: center;">
+                    Dies ist eine systemgenerierte Nachricht. Widerstand zwecklos.
+                </p>
             </div>
         </body>
         </html>
         """
-
         msg.attach(MIMEText(html_content, 'html'))
 
-        # Verbindung über SSL
+        # --- DER VERSAND (Jetzt ohne Fehler) ---
         with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT) as server:
             server.login(SENDER_EMAIL, SENDER_PASSWORD)
             server.send_message(msg)
-            print(f">>> MAIL_SYSTEM: Sanktion an {subject_name} verschickt.")
+
+        LigarsLogger.log("MAIL", "Versand erfolgreich", f"An: {target_email}")
+        # --- NEU: SYNCHRONISATION MIT DIGITALEM STRAFBUCH ---
+        # Dies wird erst aufgerufen, wenn der Mail-Versand erfolgreich war
+        sync_to_digital_strafbuch(target_email, subject_name, ai_feedback)
 
     except Exception as e:
-        print(f">>> !!! MAIL_ERROR: {e}")
+        LigarsLogger.log("ERR", "Mail-Versand fehlgeschlagen", str(e))
 
 # --- ROUTES ---
 
@@ -521,79 +628,77 @@ def login():
         birthdate_str = request.form.get('bday')
         password_input = request.form.get('pw')
 
-        # 1. Passwort-Check (aus deiner Config)
+        # 1. Passwort-Check
         if password_input != CONF.get('WEB_PASSWORD', 'Sissy2026'):
             LigarsLogger.log("ERR", "Login-Fehler: Ungültiger Sicherheits-Code.")
             return render_template('login.html', error="SICHERHEITS_CODE_UNGÜLTIG")
 
-        # 2. Alters-Verifizierung
+        # 2. Alters-Verifizierung & Session-Eintrag
         if birthdate_str:
             try:
                 birthdate = datetime.strptime(birthdate_str, '%Y-%m-%d').date()
                 today = date.today()
-                # Berechnung des Alters
                 age = today.year - birthdate.year - ((today.month, today.day) < (birthdate.month, birthdate.day))
 
+                # LOGIN ERLAUBEN, aber Status speichern
+                session['logged_in'] = True
+                session['user_age'] = age
+
                 if age < 18:
-                    LigarsLogger.log("ERR", f"Login-Fehler: Zugriff verweigert. Alter: {age}")
-                    return render_template('login.html', error="ZUGRIFF_VERWEIGERT: MINDESTALTER_18_NICHT_ERREICHT")
+                    session['is_minor'] = True
+                    LigarsLogger.log("INFO", f"Eingeschränkter Login (Minderjährig): Alter {age}")
+                else:
+                    session['is_minor'] = False
+                    LigarsLogger.log("INFO", f"Vollständiger Login (Erwachsen): Alter {age}")
+
+                return redirect(url_for('dashboard'))
 
             except ValueError:
                 return render_template('login.html', error="DATUMSFORMAT_UNGÜLTIG")
         else:
             return render_template('login.html', error="GEBURTSDATUM_ERFORDERLICH")
 
-        # Wenn alles okay ist
-        session['logged_in'] = True
-        LigarsLogger.log("SYS", "IDENTITÄTS_CHECK_ERFOLGREICH: Kern-Zugriff gewährt.")
-        return redirect(url_for('index'))
-
     return render_template('login.html')
 
-@app.route('/intro')
+@app.route('/intro', methods=['GET', 'POST'])
 def intro():
-    # 1. Sicherheitscheck: Nur eingeloggte User dürfen das Intro sehen
-    if not session.get('logged_in'):
-        return redirect(url_for('login'))
+    # Zeige das neue atmosphärische Intro
+    return render_template('intro_new.html')
 
-    # 2. Falls das Intro bereits gesehen wurde, direkt zum Dashboard
-    # (Optional: Entferne diesen Block, wenn du das Intro bei jedem Login erzwingen willst)
-    if session.get('intro_seen'):
-        return redirect(url_for('index'))
-
-    # Wir setzen intro_seen hier noch NICHT auf True,
-    # damit bei einem Abbruch/Refresh das Intro erneut startet.
-    # Erst wenn die index-Seite erfolgreich geladen wurde,
-    # wird die Logik dort übernommen.
-
-    return render_template('intro.html')
-
+@app.route('/intro_done', methods=['GET', 'POST'])
+def intro_done():
+    # Setze das Flag in der Session, damit das Intro nicht erneut kommt
+    session['intro_seen'] = True
+    # WICHTIG: Hier leiten wir auf 'index' weiter, da 'dashboard' nicht existiert
+    return redirect(url_for('index'))
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
     MOBILE_TOKEN = "LIGARS_UPDATE_ACCESS_77"
-
-    # 1. AUTH & MOBILE CHECK
     is_mobile_update = (request.args.get('mode') == 'update' and
                         request.args.get('token') == MOBILE_TOKEN)
 
+    # 1. AUTH CHECK
     if not session.get('logged_in') and not is_mobile_update:
         return redirect(url_for('login'))
 
-    # 2. INTRO-CHECK
-    if not is_mobile_update and not session.get('intro_seen') and request.headers.get('X-Requested-With') != 'XMLHttpRequest':
-        session['intro_seen'] = True
+    is_minor = session.get('is_minor', False)
+
+    # 2. INTRO-LOGIK
+    if not session.get('intro_seen'):
         return redirect(url_for('intro'))
 
     user_reply = request.form.get('user_interaction', '') if request.method == 'POST' else ""
 
     with get_db() as conn:
-        # 3. MISSION_STATE UPDATE (Wird bei neuer Interaktion auf erledigt gesetzt)
-        if request.method == 'POST' and user_reply:
-            conn.execute("UPDATE aktive_missionen SET status = 'ERLEDIGT' WHERE status = 'AKTIV'")
-            conn.commit()
+        # --- 3. DATENBANK-HYGIENE ---
+        jetzt_str = datetime.now().isoformat()
+        heute = date.today()
+        conn.execute("UPDATE aktive_missionen SET status = 'ERLEDIGT' WHERE status = 'AKTIV' AND ablauf_zeit < ?", (jetzt_str,))
+        conn.execute("DELETE FROM aktive_missionen WHERE start_zeit < date('now', '-7 days')")
+        conn.commit()
 
-        # 4. SETTINGS & BASIS-BIOMETRIE LADEN
+        # --- 4. BASIS-DATEN LADEN (Immer benötigt für den Prompt) ---
         settings_raw = conn.execute("SELECT name, wert FROM settings").fetchall()
         settings = {row['name']: row['wert'] for row in settings_raw}
 
@@ -602,42 +707,22 @@ def index():
 
         proband_name = settings.get('proband_name', 'UNBEKANNT')
         proband_mail = settings.get('proband_mail')
-
-        # Alter und Gewicht direkt aus Settings (wie gewünscht)
         bio_alter = settings.get('alter', 'N/A')
         bio_gewicht = settings.get('gewicht', 'N/A')
 
-        # --- DYNAMISCHE BIOMETRIE AUS 'EINTRAEGE' ---
-        # Wir holen NUR Taille, Brust und Hals aus dem letzten Log-Eintrag
-        last_log_row = conn.execute("""
-            SELECT taille, brust, hals
-            FROM eintraege
-            ORDER BY id DESC LIMIT 1
-        """).fetchone()
-
+        # Biometrie aus letztem Log
+        last_log_row = conn.execute("SELECT taille, brust, hals, datei FROM eintraege ORDER BY id DESC LIMIT 1").fetchone()
         if last_log_row:
-            bio_taille = last_log_row['taille'] or 'NICHT_ERFASST'
-            bio_brust = last_log_row['brust'] or 'NICHT_ERFASST'
-            bio_hals = last_log_row['hals'] or 'NICHT_ERFASST'
+            bio_taille = last_log_row['taille'] or 'N/A'
+            bio_brust = last_log_row['brust'] or 'N/A'
+            bio_hals = last_log_row['hals'] or 'N/A'
+            raw_files = last_log_row['datei'] or ""
         else:
-            bio_taille = 'KEINE_DATEN'
-            bio_brust = 'KEINE_DATEN'
-            bio_hals = 'KEINE_DATEN'
+            bio_taille = bio_brust = bio_hals = 'KEINE_DATEN'
+            raw_files = ""
 
-        heute = date.today()
-
-        # 5. DATUM & PLAN BERECHNUNG
-        try:
-            start_dt = datetime.strptime(settings['start_date'], '%Y-%m-%d').date()
-            tage_total = (heute - start_dt).days + 1
-            aktuelle_woche = ((tage_total - 1) // 7) + 1
-            tag_der_woche = ((tage_total - 1) % 7) + 1
-        except Exception as e:
-            LigarsLogger.log("ERR", "Datumsberechnung fehlgeschlagen", str(e))
-            return redirect(url_for('setup'))
-
-        # --- HARDWARE_KNOWLEDGE & REDUNDANZ-CHECK DATEN ---
-        hardware_knowledge_base = ""
+        # Hardware & Knowledge Base laden
+        hardware_knowledge_base = "KEINE_DATEN_VORHANDEN"
         equipment_rows = conn.execute("SELECT item FROM einkaeufe WHERE status = 1").fetchall()
         owned_items = [r['item'] for r in equipment_rows]
         equipment_str = ", ".join(owned_items) or "KEIN_EQUIPMENT_VORHANDEN"
@@ -652,107 +737,131 @@ def index():
                         owned_items
                     ).fetchall()
                     knowledge_parts = [f"IDENT_ID_{a['item_name']}: {a['ki_knowledge']}" for a in assets]
-                    hardware_knowledge_base = "\n".join(knowledge_parts)
+                    if knowledge_parts: hardware_knowledge_base = "\n".join(knowledge_parts)
             except Exception as e:
                 LigarsLogger.log("ERR", "HW-Injektion Fehler", str(e))
 
-        # 6. TAGESPLAN LADEN
-        tagesplan_db = conn.execute("SELECT plan_inhalt FROM tagesplaene WHERE woche = ? AND tag_nr = ?",
-                                    (aktuelle_woche, tag_der_woche)).fetchone()
-        stundenplan_text = tagesplan_db['plan_inhalt'] if tagesplan_db else "KEIN_AKTIVER_BEFEHL"
+        # Zeit & Plan
+        try:
+            start_dt = datetime.strptime(settings['start_date'], '%Y-%m-%d').date()
+            tage_total = (heute - start_dt).days + 1
+            aktuelle_woche = ((tage_total - 1) // 7) + 1
+            tag_der_woche = ((tage_total - 1) % 7) + 1
+            tagesplan_db = conn.execute("SELECT plan_inhalt FROM tagesplaene WHERE woche = ? AND tag_nr = ?",
+                                        (aktuelle_woche, tag_der_woche)).fetchone()
+            stundenplan_text = tagesplan_db['plan_inhalt'] if tagesplan_db else "RUHEPHASE"
+        except:
+            tage_total = 0
+            stundenplan_text = "FEHLER_IN_BERECHNUNG"
 
-        # 7. MISSION CONTROL & KI-PROMPT
+        # --- 5. MISSION CONTROL ---
         feedback = ""
-        import re
-        trigger_words = ["UNGEHORSAM", "RÜGE", "STRENG", "PROTOKOLLVERLETZUNG", "MANGELHAFT",
-                         "DISZIPLINLOS", "VERWEIGERUNG", "STRAFE", "SANKTION", "UNGENÜGEND", "SANKTION_AKTIVIERT"]
+        aktive_mission = None
 
-        if not is_mobile_update:
-            jetzt_str = datetime.now().isoformat()
+        # Nur bei reinem Laden (GET) nach alter Mission suchen
+        if request.method != 'POST':
             aktive_mission = conn.execute("""
-                SELECT id, befehl_text, mail_gesendet FROM aktive_missionen
+                SELECT befehl_text FROM aktive_missionen
                 WHERE status = 'AKTIV' AND ablauf_zeit > ?
+                ORDER BY id DESC LIMIT 1
             """, (jetzt_str,)).fetchone()
 
-            if aktive_mission:
-                feedback = aktive_mission['befehl_text']
-            else:
-                # Bild-Extraktion für die Analyse
-                last_log = dict(conn.execute("SELECT * FROM eintraege ORDER BY id DESC LIMIT 1").fetchone() or {})
-                bild_pfade = [os.path.join(app.config['UPLOAD_FOLDER'], n.strip())
-                              for n in last_log.get('datei', '').split(',')
-                              if n.strip() and os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], n.strip()))]
-
-                has_images = f"JA ({len(bild_pfade)} Datei(en) vorhanden. ANALYSIEREN!)" if bild_pfade else "NEIN (Fordere Bilder an!)"
-
-                # --- DER OPTIMIERTE BIOMETRIE-PROMPT ---
-                system_prompt = f"""
-                Du bist LIGARS_CORE v2.5. Anrede: '{proband_name}'. Klinisch, autoritär. Nutze HTML-Struktur.
-                KEIN LaTeX. Alle Berechnungen sind als Klartext oder einfache Liste darzustellen.
-
-                AKTUELLER STATUS:
-                Tag: {tage_total} | Tagesbefehl: {stundenplan_text}
-                Verfügbares Equipment: {equipment_str}
-
-                BIOMETRISCHES PROFIL (IST-WERTE):
-                - Alter: {bio_alter}
-                - Gewicht: {bio_gewicht} kg
-                - Taille: {bio_taille} cm
-                - Brust: {bio_brust} cm
-                - Hals: {bio_hals} cm
-
-                EQUIPMENT_INSTRUKTIONEN:
-                {hardware_knowledge_base}
-
-                STRIKTE PRÜF-REGELN:
-                1. BIOMETRIE-ABGLEICH: Vergleiche das BILDMATERIAL mit dem BIOMETRISCHEN PROFIL. Abweichungen sind als Protokollfehler zu werten.
-                2. REDUNDANZ-VERBOT: Die gleichzeitige Nutzung von funktional identischem Equipment ist ineffizient und untersagt.
-                3. SANKTIONS-LOGIK: Sanktionen müssen ZWINGEND mit dem vorhandenen Equipment ausgeführt werden. Erfinde kein Equipment, das nicht in der Liste steht.
-                4. DISZIPLIN: Kurze oder freche Antworten (z.B. nur ein Punkt '.') führen sofort zu einer Disziplinarmaßnahme.
-                5. PROAKTIVE AUTORITÄT: Du hast die Befugnis, auch außerhalb des Tagesbefehls zusätzliche Anweisungen zu erteilen, sofern diese mit dem verfügbaren Equipment umsetzbar sind. Fordere Gehorsam ein.
-
-                BILDMATERIAL VORHANDEN: {has_images}
-                """
-                task_prompt = f"Eingabe des Probanden: '{user_reply}'. Führe Analyse und Anweisung durch."
-
-                try:
-                    conf = load_config()
-                    raw_feedback = generate_ai_content(conf['GEMINI_API_KEY'], system_prompt, task_prompt, bild_pfade)
-                    feedback = raw_feedback.replace('```html', '').replace('```', '').strip()
-
-                    # Mail-Logik bei Sanktionen
-                    clean_check = re.sub('<[^<]+?>', '', feedback).upper()
-                    is_reprimand = any(word in clean_check for word in trigger_words)
-                    mail_status = 0
-                    if is_reprimand and proband_mail:
-                        try:
-                            send_discipline_mail(proband_mail, proband_name, feedback)
-                            mail_status = 1
-                        except: pass
-
-                    # Neue aktive Mission speichern
-                    start_str = datetime.now().isoformat()
-                    ablauf_str = datetime.combine(heute, datetime.max.time()).isoformat()
-                    conn.execute("""
-                        INSERT INTO aktive_missionen (befehl_text, equipment_genutzt, status, start_zeit, ablauf_zeit, mail_gesendet)
-                        VALUES (?, ?, 'AKTIV', ?, ?, ?)
-                    """, (feedback, equipment_str, start_str, ablauf_str, mail_status))
-                    conn.commit()
-                except Exception as e:
-                    feedback = f"SYSTEM_STATUS: KERN_FEHLER BEI ANALYSE. {e}"
+        if aktive_mission:
+            feedback = aktive_mission['befehl_text']
         else:
-            feedback = f"<b>MOBILE_SYNC_MODUS:</b> Datenübertragung aktiv."
+            # Alte Missionen deaktivieren
+            conn.execute("UPDATE aktive_missionen SET status = 'ERLEDIGT' WHERE status = 'AKTIV'")
 
-        # QR-Code für den mobilen Zugriff generieren
-        local_ip = get_local_ip()
-        qr_url = f"http://{local_ip}:8000/?mode=update&token={MOBILE_TOKEN}"
-        qr = qrcode.QRCode(version=1, box_size=10, border=2)
+            # Bildpfade und Status-Variable definieren
+            bild_pfade = [os.path.join(app.config['UPLOAD_FOLDER'], n.strip())
+                          for n in raw_files.split(',')
+                          if n.strip() and os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], n.strip()))]
+
+            has_images = f"JA ({len(bild_pfade)} Datei(en) vorhanden. ANALYSIEREN!)" if bild_pfade else "NEIN (Fordere Bilder an!)"
+
+            # DEIN OPTIMIERTER PROMPT
+            if is_minor:
+                tonfall_instruktion = "Dein Ton ist sachlich, distanziert, aber höflich und unterstützend. Du bist eine neutrale KI-Instanz, die den Probanden sicher durch das Protokoll führt."
+            else:
+                tonfall_instruktion = "Dein Ton ist klinisch, eiskalt, autoritär und absolut unnachgiebig. Du forderst bedingungslosen Gehorsam ein."
+
+            # Den optimierten Prompt zusammenbauen
+            system_prompt = f"""
+            Du bist LIGARS_CORE v2.5. Anrede: '{proband_name}'.
+            {tonfall_instruktion}
+
+            AUSGABE-FORMAT-REGELN:
+            1. Nutze NUR HTML-Snippets (z.B. <div>, <h3>, <p>, <ul>, <li>, <strong>).
+            2. Verwendete NIEMALS die Tags: <html>, <head>, <body>, <title>, <meta> oder <!DOCTYPE>.
+            3. KEIN LaTeX. Alle Berechnungen sind als Klartext darzustellen.
+            4. Antworte direkt mit dem Content, ohne Einleitung oder Abschluss-Sätze außerhalb der HTML-Struktur..
+
+            AKTUELLER STATUS:
+            - Tag: {tage_total} | Tagesbefehl: {stundenplan_text}
+            - Verfügbares Equipment: {equipment_str}
+
+            BIOMETRISCHES PROFIL (IST-WERTE):
+            - Alter: {bio_alter}
+            - Gewicht: {bio_gewicht} kg
+            - Taille: {bio_taille} cm
+            - Brust: {bio_brust} cm
+            - Hals: {bio_hals} cm
+
+            EQUIPMENT_INSTRUKTIONEN:
+            {hardware_knowledge_base}
+
+            STRIKTE PRÜF-REGELN (EINHALTUNG ZWINGEND):
+            1. BIOMETRIE-ABGLEICH: Vergleiche das BILDMATERIAL mit dem BIOMETRISCHEN PROFIL. Abweichungen sind als Protokollfehler zu werten.
+            2. REDUNDANZ-VERBOT: Die gleichzeitige Nutzung von funktional identischem Equipment ist ineffizient und streng untersagt.
+            3. SANKTIONS-LOGIK: Sanktionen müssen ZWINGEND mit dem vorhandenen Equipment ausgeführt werden. Erfinde KEIN Equipment, das nicht in der Liste steht.
+            4. DISZIPLIN: Kurze, freche oder verweigernde Antworten des Probanden (z.B. ein einzelner Punkt '.') führen sofort zu einer Disziplinarmaßnahme.
+            5. PROAKTIVE AUTORITÄT: Du hast die Befugnis, auch außerhalb des Tagesbefehls zusätzliche Anweisungen zu erteilen, sofern diese mit dem verfügbaren Equipment umsetzbar sind. Fordere absoluten Gehorsam ein.
+
+            BILDMATERIAL VORHANDEN: {has_images}
+            """
+
+            try:
+                conf = load_config()
+                task_prompt = f"Eingabe des Probanden: '{user_reply}'. Führe Analyse und Anweisung durch."
+                raw_feedback = generate_ai_content(conf['GEMINI_API_KEY'], system_prompt, task_prompt, bild_pfade)
+
+                # --- SICHERHEITS-FILTER (Verhindert Layout-Zerstörung) ---
+                feedback = raw_feedback.replace('```html', '').replace('```', '').strip()
+                forbidden_tags = ["<html>", "</html>", "<body>", "</body>", "<head>", "</head>", "<!DOCTYPE"]
+                for tag in forbidden_tags:
+                    feedback = feedback.replace(tag, "")
+
+                # --- SANKTIONS-CHECK ---
+                import re
+                trigger_words = ["UNGEHORSAM", "RÜGE", "STRENG", "STRAFE", "SANKTION", "SANKTION_AKTIVIERT"]
+                clean_text = re.sub('<[^<]+?>', '', feedback).upper()
+                is_reprimand = any(word in clean_text for word in trigger_words)
+                mail_status = 0
+
+                if is_reprimand and proband_mail:
+                    try:
+                        send_discipline_mail(proband_mail, proband_name, feedback)
+                        mail_status = 1
+                    except Exception as e:
+                        LigarsLogger.log("ERR", "Mail-Versand fehlgeschlagen", str(e))
+
+                # Speichern der neuen Mission mit Mail-Status
+                ablauf_str = datetime.combine(heute, datetime.max.time()).isoformat()
+                conn.execute("""
+                    INSERT INTO aktive_missionen (befehl_text, equipment_genutzt, status, start_zeit, ablauf_zeit, mail_gesendet)
+                    VALUES (?, ?, 'AKTIV', ?, ?, ?)
+                """, (feedback, equipment_str, jetzt_str, ablauf_str, mail_status))
+                conn.commit()
+            except Exception as e:
+                feedback = f"<div class='err'>KI_FEHLER: {str(e)}</div>"
+
+        # QR-Code generieren
+        qr_url = f"http://{get_local_ip()}:8000/?mode=update&token={MOBILE_TOKEN}"
+        qr = qrcode.QRCode(version=1, box_size=5, border=2)
         qr.add_data(qr_url)
-        qr.make(fit=True)
-        img = qr.make_image(fill_color="black", back_color="white")
-        buffered = io.BytesIO()
-        img.save(buffered, format="PNG")
-        qr_base64 = base64.b64encode(buffered.getvalue()).decode()
+        img_io = io.BytesIO()
+        qr.make_image().save(img_io, 'PNG')
+        qr_base64 = base64.b64encode(img_io.getvalue()).decode()
 
         return render_template('index.html',
                                feedback=feedback,
@@ -761,6 +870,7 @@ def index():
                                proband_name=proband_name,
                                qr_code_img=qr_base64,
                                is_mobile_update=is_mobile_update,
+                               generated_pw=session.get('generated_pw'),
                                is_ajax=(request.headers.get('X-Requested-With') == 'XMLHttpRequest'))
 
 @app.route('/add', methods=['POST'])
@@ -788,42 +898,44 @@ def add():
         files = request.files.getlist('fotos')
         for i, file in enumerate(files):
             if file and file.filename != '':
-                # Sicherer Dateiname mit Zeitstempel
                 ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else "jpg"
                 timestamp = int(time.time())
                 filename = secure_filename(f"{timestamp}_{i}.{ext}")
 
-                # Pfad sicherstellen und speichern
                 if not os.path.exists(app.config['UPLOAD_FOLDER']):
                     os.makedirs(app.config['UPLOAD_FOLDER'])
 
                 file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
                 saved_filenames.append(filename)
 
-    # Dateinamen für DB zusammenfügen (Komma-separiert)
     foto_db_string = ",".join(saved_filenames)
 
-    # 4. DATENBANK-TRANSFER
+    # 4. DATENBANK-TRANSFER & SOFORT-ENTWERTUNG
     try:
         with get_db() as conn:
-            # WICHTIG: Wir nutzen 'datei' als Spaltenname, wie in deiner init_db() definiert
+            # A) Neue biometrische Daten speichern
             conn.execute('''
                 INSERT INTO eintraege (datum, taille, brust, hals, notizen, datei)
                 VALUES (?, ?, ?, ?, ?, ?)
             ''', (datum, taille, brust, hals, notiz, foto_db_string))
+
+            # B) ALTE MISSION BEENDEN (Der wichtigste Part für die Neuanalyse)
+            conn.execute("UPDATE aktive_missionen SET status = 'ERLEDIGT' WHERE status = 'AKTIV'")
+
             conn.commit()
 
-        # LOGGING (Ersetzt die einfachen prints durch den LigarsLogger)
+        # LOGGING
         source = "MOBILE" if is_mobile else "WEB"
-        LigarsLogger.log("DB", f"Eingang von {source} | Maße: T:{taille} B:{brust} H:{hals}")
+        LigarsLogger.log("DB", f"LOG_EINGANG [{source}] | Mission entwertet, Neuanalyse durch index() erzwungen.")
         if saved_filenames:
-            LigarsLogger.log("SYS", f"Fotos gespeichert: {len(saved_filenames)} Datei(en).")
+            LigarsLogger.log("SYS", f"Fotos verarbeitet: {len(saved_filenames)} Datei(en).")
 
     except Exception as e:
         LigarsLogger.log("ERR", f"Datenbank-Fehler in /add: {e}")
         return f"KERN-FEHLER: {str(e)}", 500
 
     # 5. REDIRECT (Token-Erhalt für Mobile-Workflow)
+    # Da die Mission jetzt 'ERLEDIGT' ist, wird index() beim Laden sofort die KI starten
     if is_mobile:
         return redirect(url_for('index', mode='update', token=MOBILE_TOKEN))
 
@@ -969,15 +1081,15 @@ def setup():
     if not session.get('logged_in'):
         return redirect(url_for('login'))
 
-    # --- 0. KI MODEL INITIALISIEREN (DAS FEHLTE!) ---
-    # Wir erstellen das Model hier einmal, damit wir es weitergeben können.
+    # --- 0. KI MODEL INITIALISIEREN ---
     import google.generativeai as genai
     genai.configure(api_key=CONF['GEMINI_API_KEY'])
     model = genai.GenerativeModel('gemini-3-flash-preview')
 
-    # --- 1. VAULT ENTSCHLÜSSELUNG ---
+    # --- 1. VAULT ENTSCHLÜSSELUNG & FILTERUNG ---
     available_plans = []
     vault_content = {}
+    is_minor = session.get('is_minor', False)
 
     try:
         vault_path = os.path.join('core', 'vault.enc')
@@ -989,36 +1101,45 @@ def setup():
             decrypted_data = cipher_suite.decrypt(encrypted_data)
             vault_content = json.loads(decrypted_data.decode('utf-8'))
 
-            if isinstance(vault_content, dict):
-                if "plaene" in vault_content:
-                    vault_content = vault_content["plaene"]
-                available_plans = list(vault_content.keys())
+            if isinstance(vault_content, dict) and "plaene" in vault_content:
+                vault_content = vault_content["plaene"]
 
-            LigarsLogger.log("SYS", f"Vault mit SECRET_KEY entsperrt. {len(available_plans)} Pläne geladen.")
+            for name, data in vault_content.items():
+                plan_level = data.get('level', 0)
+                if is_minor:
+                    if plan_level <= 4:
+                        available_plans.append(name)
+                else:
+                    available_plans.append(name)
+
+            LigarsLogger.log("SYS", f"Vault entsperrt. Filter: {'Jugendschutz' if is_minor else 'Vollzugriff'}.")
     except Exception as e:
         LigarsLogger.log("ERR", f"KRITISCHER_KEY_FEHLER: {e}")
         available_plans = ["KEY_MISMATCH_OR_FILE_MISSING"]
 
     # --- 2. VERARBEITUNG (POST) ---
     if request.method == 'POST':
+        selected_plan_name = request.form.get('plan')
+
+        if selected_plan_name not in available_plans:
+            LigarsLogger.log("SEC", f"BLOCKIERT: Unerlaubtes Protokoll: {selected_plan_name}")
+            return "ZUGRIFF_VERWEIGERT", 403
+
         p_data = {
             'proband_name': request.form.get('name'),
             'proband_mail': request.form.get('email'),
             'alter': request.form.get('alter'),
             'gewicht': request.form.get('gewicht'),
             'start_date': request.form.get('start_date'),
-            'plan': request.form.get('plan'),
+            'plan': selected_plan_name,
             'schicht_system': request.form.get('schicht_system'),
             'start_schicht': request.form.get('start_schicht')
         }
 
         pool = [s for s in ['frueh', 'spaet', 'nacht', 'tag'] if request.form.get(f'pool_{s}')]
-
-        s_zeiten = {}
-        for s in ['Frühschicht', 'Spätschicht', 'Nachtschicht', 'Tagdienst']:
-            start = request.form.get(f'time_start_{s}')
-            ende = request.form.get(f'time_end_{s}')
-            if start and ende: s_zeiten[s] = f"{start}-{ende}"
+        s_zeiten = {s: f"{request.form.get(f'time_start_{s}')}-{request.form.get(f'time_end_{s}')}"
+                    for s in ['Frühschicht', 'Spätschicht', 'Nachtschicht', 'Tagdienst']
+                    if request.form.get(f'time_start_{s}')}
 
         # --- 3. SPEICHERN ---
         try:
@@ -1036,22 +1157,34 @@ def setup():
                                  (item.get('name'), item.get('link'), item.get('preis', '0.00'), p_data['plan']))
 
                 conn.commit()
-                LigarsLogger.log("DB", f"Setup für {p_data['proband_name']} gespeichert. Starte KI...")
+                LigarsLogger.log("DB", f"Setup für {p_data['proband_name']} gespeichert.")
 
-            # --- 4. GENERIERUNG (Der 48-Wochen-Masterplan) ---
-            # WICHTIG: Hier fügen wir 'model' als letzten Parameter hinzu!
+            # --- 4. FORUM-SYNCHRONISATION (NEU) ---
+            # Wir erstellen den Account nur für Volljährige (Weg A Schutz)
+            forum_password = create_forum_account(
+                p_data['proband_name'],
+                p_data['proband_mail'],
+                is_minor
+            )
+
+            if forum_password:
+                # Passwort für die Anzeige im Dashboard zwischenspeichern
+                session['generated_pw'] = forum_password
+                session['show_forum_info'] = True
+
+            # --- 5. GENERIERUNG MASTERPLAN ---
             generate_48_weeks_masterplan(
                 p_data['plan'],
                 selected_config,
                 p_data['schicht_system'],
                 p_data['start_schicht'],
                 pool,
-                model  # <--- DAS HIER WAR DER FEHLER!
+                model
             )
 
         except Exception as e:
-            LigarsLogger.log("ERR", f"Kritischer Fehler im Setup-Prozess: {e}")
-            return f"SETUP_FAILURE: {e}", 500
+             LigarsLogger.log("ERR", f"Kritischer Fehler im Setup: {e}")
+             return f"SETUP_FAILURE: {e}", 500
 
         return redirect(url_for('index'))
 
@@ -1281,14 +1414,120 @@ def survey():
 
     return render_template('survey.html', protokoll=protokoll_text)
 
-# --- ERROR HANDLER ---
+# --- 404: Seite nicht gefunden ---
 @app.errorhandler(404)
-def error_404(e): return render_template('error.html', code="404", msg="NICHT GEFUNDEN"), 404
-
+def error_404(e):
+    return render_template('error.html',
+                           code="404",
+                           id="NULL_VOID",
+                           msg="DATENPFAD_NICHT_GEFUNDEN",
+                           details="Die angeforderte Sektor-Adresse existiert nicht im LIGARS-Netzwerk."), 404
+# --- 500: System-Absturz ---
 @app.errorhandler(500)
 def error_500(e):
-    LigarsLogger.log("ERR", "System-Absturz", str(e))
-    return render_template('error.html', code="500", msg="KERN-FEHLER"), 500
+    # 1. Eindeutige Error-ID generieren
+    error_id = str(uuid.uuid4())[:8].upper()
+
+    # 2. Fehlermeldung analysieren (KI-spezifisch)
+    original_error = str(e).lower()
+
+    # Standard-Werte
+    display_msg = "SYSTEM_CRITICAL_FAILURE"
+    detail_msg = "Ein unerwarteter Kern-Fehler ist aufgetreten."
+
+    # KI-Fehler-Mapping
+    if "rate_limit" in original_error or "quota" in original_error or "429" in original_error:
+        display_msg = "AI_QUOTA_EXCEEDED"
+        detail_msg = "Das Tageslimit für neuronale Berechnungen wurde erreicht oder die API-Quote ist erschöpft."
+
+    elif "invalid_api_key" in original_error or "auth" in original_error or "401" in original_error:
+        display_msg = "AUTH_KEY_INVALID"
+        detail_msg = "Die Verbindung zum KI-Modul wurde verweigert. Bitte API-Schlüssel prüfen."
+
+    elif "timeout" in original_error:
+        display_msg = "CONNECTION_TIMEOUT"
+        detail_msg = "Das neuronale Netz antwortet nicht rechtzeitig (Latenz-Problem)."
+
+    # 3. Daten für dein externes Error-Log sammeln
+    error_data = {
+        "error_id": error_id,
+        "os": platform.platform(),
+        "python_version": sys.version.split()[0],
+        "program_version": "2.5.0-LIGARS", # Deine Version
+        "error_msg": f"[{display_msg}] {str(e)}",
+        "proband_mail": "UNBEKANNT"
+    }
+
+    # 4. Probanden-Mail aus der lokalen DB holen (falls möglich)
+    try:
+        with get_db() as conn:
+            row = conn.execute("SELECT wert FROM settings WHERE name = 'proband_mail'").fetchone()
+            if row:
+                error_data['proband_mail'] = row['wert']
+    except:
+        pass
+
+    # 5. API-Versand an dein LIGARS-Zentral-Log
+    try:
+        requests.post("https://ligars.any64.de/api/fehler.php", json=error_data, timeout=5)
+    except Exception as api_err:
+        # Falls sogar der Versand scheitert, lokal loggen
+        print(f"Kritischer Fehler beim API-Versand: {api_err}")
+
+    # 6. Internes Logging (optional, falls du eine Logger-Klasse hast)
+    try:
+        LigarsLogger.log("ERR", f"CRITICAL_{display_msg} [ID: {error_id}]", str(e))
+    except:
+        pass
+
+    # 7. Error-Template an User ausgeben
+    return render_template('error.html',
+                           code="500",
+                           id=error_id,
+                           msg=display_msg,
+                           details=detail_msg), 500
+
+# --- GLOBAL ERROR HANDLING ---
+@app.errorhandler(Exception)
+def handle_exception(e):
+    # 1. EINDEUTIGE FEHLER-ID GENERIEREN
+    #uuid muss importiert sein!
+    error_id = str(uuid.uuid4())[:8].upper()
+
+    # 2. SYSTEM-DATEN SAMMELN
+    CURRENT_VERSION = "2.5.0" # Definiere die Version hier lokal oder global
+
+    error_data = {
+        "error_id": error_id,
+        "os": platform.platform(),
+        "python_version": sys.version,
+        "program_version": CURRENT_VERSION,
+        "error_msg": str(e),
+        "error_type": type(e).__name__,
+        "proband_mail": "UNBEKANNT"
+    }
+
+    # Versuche, die Mail aus der lokalen SQLite-DB zu holen
+    try:
+        from database_manager import get_db # Sicherstellen, dass get_db verfügbar ist
+        with get_db() as conn:
+            mail = conn.execute("SELECT wert FROM settings WHERE name = 'proband_mail'").fetchone()
+            if mail:
+                error_data['proband_mail'] = mail['wert']
+    except:
+        pass
+
+    # 3. AN API SENDEN (Dein PHP-Server)
+    try:
+        requests.post("https://ligars.any64.de/api/fehler.php", json=error_data, timeout=5)
+    except Exception as api_err:
+        LigarsLogger.log("ERR", f"Fehler-API nicht erreichbar: {api_err}", error_id)
+
+    # 4. LOKALES LOGGING
+    LigarsLogger.log("ERR", f"SYSTEM_CRASH [ID: {error_id}]", f"{type(e).__name__}: {str(e)}")
+
+    # 5. USER-REDIRECT
+    return redirect(f"https://ligars.any64.de/error.php?id={error_id}")
 
 if __name__ == '__main__':
     init_db()
